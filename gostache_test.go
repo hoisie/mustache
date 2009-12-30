@@ -4,8 +4,6 @@ import (
     "testing"
 )
 
-var basic = `hello {{name}}`
-
 type Test struct {
     tmpl     string
     context  interface{}
@@ -13,7 +11,9 @@ type Test struct {
 }
 
 var tests = []Test{
-    Test{basic, map[string]string{"name": "world"}, "hello world"},
+    Test{`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
+    Test{`{{a}}{{b}}{{c}}{{d}}`, map[string]string{"a":"a","b":"b","c":"c","d":"d"}, "abcd"},
+    Test{`0{{a}}1{{b}}23{{c}}456{{d}}89`, map[string]string{"a":"a","b":"b","c":"c","d":"d"}, "0a1b23c456d89"},
 }
 
 
