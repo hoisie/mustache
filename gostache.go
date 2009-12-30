@@ -18,6 +18,11 @@ type varElement struct {
     name string
 }
 
+type sectionElement struct {
+    name  string
+    elems *vector.Vector
+}
+
 type template struct {
     data    string
     otag    string
@@ -81,6 +86,67 @@ func (tmpl *template) readToEnd() string {
     return text
 }
 
+func (tmpl *template) parseSection(section *sectionElement) os.Error {
+    for {
+        text, err := tmpl.readString(tmpl.otag)
+
+        if err == os.EOF {
+            //put the remaining text in a block
+            remaining := tmpl.readToEnd()
+            section.elems.Push(&textElement{strings.Bytes(remaining)})
+            return nil
+        }
+
+        // put text into an item
+        text = text[0 : len(text)-len(tmpl.otag)]
+        section.elems.Push(&textElement{strings.Bytes(text)})
+
+        text, err = tmpl.readString(tmpl.ctag)
+        if err == os.EOF {
+            //put the remaining text in a block
+            return parseError{tmpl.curline, "unmatched open tag"}
+        }
+
+        //trim the close tag off the text
+        tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
+        switch tag[0] {
+        case '!':
+            //ignore comment
+            break
+        case '#':
+            name := strings.TrimSpace(tag[1:])
+            se := sectionElement{name, new(vector.Vector)}
+            err := tmpl.parseSection(&se)
+            if err != nil {
+                return err
+            }
+            section.elems.Push(&se)
+        case '/':
+            name := strings.TrimSpace(tag[1:])
+            if name != section.name {
+                return parseError{tmpl.curline, "interleaved closing tag: " + name}
+            } else {
+                return nil
+            }
+        case '>':
+            break
+        case '=':
+            if tag[len(tag)-1] != '=' {
+                panicln("Invalid meta tag")
+            }
+            tag = strings.TrimSpace(tag[1 : len(tag)-1])
+            newtags := strings.Split(tag, " ", 0)
+            if len(newtags) == 2 {
+                tmpl.otag = newtags[0]
+                tmpl.ctag = newtags[1]
+            }
+        default:
+            section.elems.Push(&varElement{tag})
+        }
+    }
+
+    return nil
+}
 
 func (tmpl *template) parse() os.Error {
     for {
@@ -110,9 +176,15 @@ func (tmpl *template) parse() os.Error {
             //ignore comment
             break
         case '#':
-            break
+            name := strings.TrimSpace(tag[1:])
+            se := sectionElement{name, new(vector.Vector)}
+            err := tmpl.parseSection(&se)
+            if err != nil {
+                return err
+            }
+            tmpl.elems.Push(&se)
         case '/':
-            break
+            return parseError{tmpl.curline, "unmatched close tag"}
         case '>':
             break
         case '=':
@@ -128,34 +200,60 @@ func (tmpl *template) parse() os.Error {
         default:
             tmpl.elems.Push(&varElement{tag})
         }
-
     }
 
     return nil
 }
 
 func lookup(context reflect.Value, name string) reflect.Value {
+
     switch val := context.(type) {
     case *reflect.MapValue:
         return val.Elem(reflect.NewValue(name))
+    case *reflect.StructValue:
+        return val.FieldByName(name)
     }
 
     return nil
 }
 
+func executeSection(section *sectionElement, context reflect.Value, buf io.Writer) {
+    value := lookup(context, section.name)
+
+    switch val := value.(type) {
+    case *reflect.BoolValue:
+        if !val.Get() {
+            return
+        }
+    }
+
+    //by default we execute the section
+    for i := 0; i < section.elems.Len(); i++ {
+        executeElement(section.elems.At(i), context, buf)
+    }
+
+}
+
+func executeElement(element interface{}, context reflect.Value, buf io.Writer) {
+    switch elem := element.(type) {
+    case *textElement:
+        buf.Write(elem.text)
+    case *varElement:
+        val := lookup(context, elem.name)
+        if val != nil {
+            buf.Write(strings.Bytes(val.(*reflect.StringValue).Get()))
+        }
+    case *sectionElement:
+        executeSection(elem, context, buf)
+    }
+}
+
 func (tmpl *template) execute(context reflect.Value, buf io.Writer) {
 
     for i := 0; i < tmpl.elems.Len(); i++ {
-        switch elem := tmpl.elems.At(i).(type) {
-        case *textElement:
-            buf.Write(elem.text)
-        case *varElement:
-            val := lookup(context, elem.name)
-            if val != nil {
-                buf.Write(strings.Bytes(val.(*reflect.StringValue).Get()))
-            }
-        }
+        executeElement(tmpl.elems.At(i), context, buf)
     }
+
 }
 
 func Render(data string, context interface{}) (string, os.Error) {

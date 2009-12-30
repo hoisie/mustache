@@ -17,6 +17,17 @@ var tests = []Test{
     Test{`hello {{! comment }}world`, map[string]string{}, "hello world"},
     Test{`{{ a }}{{=<% %>=}}<%b %><%={{ }}=%>{{ c }}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
     Test{`{{ a }}{{= <% %> =}}<%b %><%= {{ }}=%>{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
+
+    //section tests
+    Test{`{{#a}}{{b}}{{/a}}`, struct {
+        a   bool
+        b   string
+    }{true, "hello"}, "hello"},
+    Test{`{{#a}}{{b}}{{/a}}`, struct {
+        a   bool
+        b   string
+    }{false, "hello"}, ""},
+    Test{`{{a}}{{#b}}{{b}}{{/b}}{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
 }
 
 func TestBasic(t *testing.T) {
