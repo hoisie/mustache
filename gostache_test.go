@@ -22,16 +22,29 @@ var tests = []Test{
     Test{`{{#a}}{{b}}{{/a}}`, struct {
         a   bool
         b   string
-    }{true, "hello"}, "hello"},
+    }{true, "hello"},
+        "hello",
+    },
     Test{`{{#a}}{{b}}{{/a}}`, struct {
         a   bool
         b   string
-    }{false, "hello"}, ""},
+    }{false, "hello"},
+        "",
+    },
     Test{`{{a}}{{#b}}{{b}}{{/b}}{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
+    Test{`{{#a}}{{b}}{{/a}}`, struct {
+        a []struct {
+            b string
+        }
+    }{[]struct {
+        b string
+    }{struct{ b string }{"a"}, struct{ b string }{"b"}, struct{ b string }{"c"}}},
+        "abc",
+    },
+    Test{`{{#a}}{{b}}{{/a}}`, struct{ a []map[string]string }{[]map[string]string{map[string]string{"b": "a"}, map[string]string{"b": "b"}, map[string]string{"b": "c"}}}, "abc"},
 }
 
 func TestBasic(t *testing.T) {
-
     for _, test := range (tests) {
         output, err := Render(test.tmpl, test.context)
         if err != nil {

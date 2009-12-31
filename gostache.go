@@ -219,19 +219,34 @@ func lookup(context reflect.Value, name string) reflect.Value {
 
 func executeSection(section *sectionElement, context reflect.Value, buf io.Writer) {
     value := lookup(context, section.name)
+    var contexts = new(vector.Vector)
 
     switch val := value.(type) {
     case *reflect.BoolValue:
         if !val.Get() {
             return
+        } else {
+            contexts.Push(context)
         }
+    case *reflect.SliceValue:
+        for i := 0; i < val.Len(); i++ {
+            contexts.Push(val.Elem(i))
+        }
+    case *reflect.ArrayValue:
+        for i := 0; i < val.Len(); i++ {
+            contexts.Push(val.Elem(i))
+        }
+    default:
+        contexts.Push(context)
     }
 
     //by default we execute the section
-    for i := 0; i < section.elems.Len(); i++ {
-        executeElement(section.elems.At(i), context, buf)
+    for j := 0; j < contexts.Len(); j++ {
+        ctx := contexts.At(j).(reflect.Value)
+        for i := 0; i < section.elems.Len(); i++ {
+            executeElement(section.elems.At(i), ctx, buf)
+        }
     }
-
 }
 
 func executeElement(element interface{}, context reflect.Value, buf io.Writer) {

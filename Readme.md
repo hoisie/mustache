@@ -11,7 +11,7 @@ For more information about mustache, check out the [mustache project page] ( htt
 * Variables
 * Comments
 * Change delimiter
-* Sections (partially complete)
+* Sections
 
 ### Incomplete (coming soon)
 
