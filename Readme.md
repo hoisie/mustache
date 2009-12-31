@@ -4,16 +4,12 @@ gostache is an implementation of the mustache template language in Go. It is bet
 
 For more information about mustache, check out the [mustache project page] ( http://github.com/defunkt/mustache ).
 
-## Features
-
-### Completed
+## Supported features
 
 * Variables
 * Comments
 * Change delimiter
 * Sections
-
-### Incomplete (coming soon)
-
 * Partials
+
 

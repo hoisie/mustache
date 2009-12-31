@@ -31,7 +31,7 @@ type template struct {
     ctag    string
     p       int
     curline int
-    rootdir string
+    dir     string
     elems   *vector.Vector
 }
 
@@ -89,6 +89,18 @@ func (tmpl *template) readToEnd() string {
     return text
 }
 
+func (tmpl *template) parsePartial(name string) (*template, os.Error) {
+    filename := path.Join(tmpl.dir, name+".mustache")
+
+    partial, err := ParseFile(filename)
+
+    if err != nil {
+        return nil, err
+    }
+
+    return partial, nil
+}
+
 func (tmpl *template) parseSection(section *sectionElement) os.Error {
     for {
         text, err := tmpl.readString(tmpl.otag)
@@ -132,7 +144,12 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
                 return nil
             }
         case '>':
-            break
+            name := strings.TrimSpace(tag[1:])
+            partial, err := tmpl.parsePartial(name)
+            if err != nil {
+                return err
+            }
+            tmpl.elems.Push(partial)
         case '=':
             if tag[len(tag)-1] != '=' {
                 panicln("Invalid meta tag")
@@ -189,7 +206,12 @@ func (tmpl *template) parse() os.Error {
         case '/':
             return parseError{tmpl.curline, "unmatched close tag"}
         case '>':
-            break
+            name := strings.TrimSpace(tag[1:])
+            partial, err := tmpl.parsePartial(name)
+            if err != nil {
+                return err
+            }
+            tmpl.elems.Push(partial)
         case '=':
             if tag[len(tag)-1] != '=' {
                 panicln("Invalid meta tag")
@@ -263,16 +285,20 @@ func renderElement(element interface{}, context reflect.Value, buf io.Writer) {
         }
     case *sectionElement:
         renderSection(elem, context, buf)
+    case *template:
+        elem.renderTemplate(context, buf)
+    }
+}
+
+func (tmpl *template) renderTemplate(context reflect.Value, buf io.Writer) {
+    for i := 0; i < tmpl.elems.Len(); i++ {
+        renderElement(tmpl.elems.At(i), context, buf)
     }
 }
 
 func (tmpl *template) Render(context interface{}, buf io.Writer) {
-
     val := reflect.NewValue(context)
-    for i := 0; i < tmpl.elems.Len(); i++ {
-        renderElement(tmpl.elems.At(i), val, buf)
-    }
-
+    tmpl.renderTemplate(val, buf)
 }
 
 func ParseString(data string) (*template, os.Error) {

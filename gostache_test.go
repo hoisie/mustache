@@ -67,3 +67,14 @@ func TestFile(t *testing.T) {
         t.Fatalf("testfile expected %q got %q", expected, output)
     }
 }
+
+func TestPartial(t *testing.T) {
+    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test2.mustache")
+    expected := "hello world"
+    output, err := RenderFile(filename, map[string]string{"name": "world"})
+    if err != nil {
+        t.Fatalf("Error in test2.mustache", err.String())
+    } else if output != expected {
+        t.Fatalf("testpartial expected %q got %q", expected, output)
+    }
+}
