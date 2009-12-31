@@ -1,6 +1,8 @@
 package gostache
 
 import (
+    "os"
+    "path"
     "testing"
 )
 
@@ -52,5 +54,16 @@ func TestBasic(t *testing.T) {
         } else if output != test.expected {
             t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
         }
+    }
+}
+
+func TestFile(t *testing.T) {
+    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test1.mustache")
+    expected := "hello world"
+    output, err := RenderFile(filename, map[string]string{"name": "world"})
+    if err != nil {
+        t.Fatalf("Error in test1.mustache", err.String())
+    } else if output != expected {
+        t.Fatalf("testfile expected %q got %q", expected, output)
     }
 }

@@ -5,7 +5,9 @@ import (
     "container/vector"
     "fmt"
     "io"
+    "io/ioutil"
     "os"
+    "path"
     "reflect"
     "strings"
 )
@@ -29,6 +31,7 @@ type template struct {
     ctag    string
     p       int
     curline int
+    rootdir string
     elems   *vector.Vector
 }
 
@@ -217,7 +220,7 @@ func lookup(context reflect.Value, name string) reflect.Value {
     return nil
 }
 
-func executeSection(section *sectionElement, context reflect.Value, buf io.Writer) {
+func renderSection(section *sectionElement, context reflect.Value, buf io.Writer) {
     value := lookup(context, section.name)
     var contexts = new(vector.Vector)
 
@@ -244,12 +247,12 @@ func executeSection(section *sectionElement, context reflect.Value, buf io.Write
     for j := 0; j < contexts.Len(); j++ {
         ctx := contexts.At(j).(reflect.Value)
         for i := 0; i < section.elems.Len(); i++ {
-            executeElement(section.elems.At(i), ctx, buf)
+            renderElement(section.elems.At(i), ctx, buf)
         }
     }
 }
 
-func executeElement(element interface{}, context reflect.Value, buf io.Writer) {
+func renderElement(element interface{}, context reflect.Value, buf io.Writer) {
     switch elem := element.(type) {
     case *textElement:
         buf.Write(elem.text)
@@ -259,28 +262,72 @@ func executeElement(element interface{}, context reflect.Value, buf io.Writer) {
             buf.Write(strings.Bytes(val.(*reflect.StringValue).Get()))
         }
     case *sectionElement:
-        executeSection(elem, context, buf)
+        renderSection(elem, context, buf)
     }
 }
 
-func (tmpl *template) execute(context reflect.Value, buf io.Writer) {
+func (tmpl *template) Render(context interface{}, buf io.Writer) {
 
+    val := reflect.NewValue(context)
     for i := 0; i < tmpl.elems.Len(); i++ {
-        executeElement(tmpl.elems.At(i), context, buf)
+        renderElement(tmpl.elems.At(i), val, buf)
     }
 
+}
+
+func ParseString(data string) (*template, os.Error) {
+    cwd := os.Getenv("CWD")
+    tmpl := template{data, "{{", "}}", 0, 1, cwd, new(vector.Vector)}
+    err := tmpl.parse()
+
+    if err != nil {
+        return nil, err
+    }
+
+    return &tmpl, err
+}
+
+func ParseFile(filename string) (*template, os.Error) {
+    data, err := ioutil.ReadFile(filename)
+
+    if err != nil {
+        return nil, err
+    }
+
+    dirname, _ := path.Split(filename)
+
+    tmpl := template{string(data), "{{", "}}", 0, 1, dirname, new(vector.Vector)}
+    err = tmpl.parse()
+
+    if err != nil {
+        return nil, err
+    }
+
+    return &tmpl, nil
 }
 
 func Render(data string, context interface{}) (string, os.Error) {
-    parser := template{data, "{{", "}}", 0, 1, new(vector.Vector)}
-    err := parser.parse()
+    tmpl, err := ParseString(data)
 
     if err != nil {
         return "", err
     }
 
-    val := reflect.NewValue(context)
     var buf bytes.Buffer
-    parser.execute(val, &buf)
+    tmpl.Render(context, &buf)
+
+    return buf.String(), nil
+}
+
+func RenderFile(filename string, context interface{}) (string, os.Error) {
+    tmpl, err := ParseFile(filename)
+
+    if err != nil {
+        return "", err
+    }
+
+    var buf bytes.Buffer
+    tmpl.Render(context, &buf)
+
     return buf.String(), nil
 }
