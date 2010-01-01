@@ -22,6 +22,7 @@ type varElement struct {
 
 type sectionElement struct {
     name  string
+    startline int
     elems *vector.Vector
 }
 
@@ -48,7 +49,7 @@ func (tmpl *template) readString(s string) (string, os.Error) {
     for true {
         //are we at the end of the string?
         if i+len(s) > len(tmpl.data) {
-            return "", os.EOF
+            return tmpl.data[tmpl.p:], os.EOF
         }
 
         if tmpl.data[i] == '\n' {
@@ -83,12 +84,6 @@ func (tmpl *template) readString(s string) (string, os.Error) {
     return "", nil
 }
 
-func (tmpl *template) readToEnd() string {
-    text := tmpl.data[tmpl.p:]
-    tmpl.p = len(tmpl.data)
-    return text
-}
-
 func (tmpl *template) parsePartial(name string) (*template, os.Error) {
     filename := path.Join(tmpl.dir, name+".mustache")
 
@@ -106,10 +101,7 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
         text, err := tmpl.readString(tmpl.otag)
 
         if err == os.EOF {
-            //put the remaining text in a block
-            remaining := tmpl.readToEnd()
-            section.elems.Push(&textElement{strings.Bytes(remaining)})
-            return nil
+            return parseError { section.startline, "Section " + section.name + " has no closing tag" }
         }
 
         // put text into an item
@@ -130,7 +122,7 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
             break
         case '#':
             name := strings.TrimSpace(tag[1:])
-            se := sectionElement{name, new(vector.Vector)}
+            se := sectionElement{name, tmpl.curline, new(vector.Vector)}
             err := tmpl.parseSection(&se)
             if err != nil {
                 return err
@@ -174,8 +166,7 @@ func (tmpl *template) parse() os.Error {
 
         if err == os.EOF {
             //put the remaining text in a block
-            remaining := tmpl.readToEnd()
-            tmpl.elems.Push(&textElement{strings.Bytes(remaining)})
+            tmpl.elems.Push(&textElement{strings.Bytes(text)})
             return nil
         }
 
@@ -197,7 +188,7 @@ func (tmpl *template) parse() os.Error {
             break
         case '#':
             name := strings.TrimSpace(tag[1:])
-            se := sectionElement{name, new(vector.Vector)}
+            se := sectionElement{name, tmpl.curline, new(vector.Vector)}
             err := tmpl.parseSection(&se)
             if err != nil {
                 return err
