@@ -4,13 +4,13 @@
 
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=gostache
+TARG=mustache
 GOFILES=\
-	gostache.go\
+	mustache.go\
 
 include $(GOROOT)/src/Make.pkg
 
 format:
-	gofmt -spaces=true -tabindent=false -tabwidth=4 -w gostache.go
-	gofmt -spaces=true -tabindent=false -tabwidth=4 -w gostache_test.go
+	gofmt -spaces=true -tabindent=false -tabwidth=4 -w mustache.go
+	gofmt -spaces=true -tabindent=false -tabwidth=4 -w mustache_test.go
 

@@ -1,4 +1,4 @@
-package gostache
+package mustache
 
 import (
     "os"

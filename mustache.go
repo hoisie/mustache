@@ -1,4 +1,4 @@
-package gostache
+package mustache
 
 import (
     "bytes"
@@ -21,9 +21,9 @@ type varElement struct {
 }
 
 type sectionElement struct {
-    name  string
+    name      string
     startline int
-    elems *vector.Vector
+    elems     *vector.Vector
 }
 
 type template struct {
@@ -101,7 +101,7 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
         text, err := tmpl.readString(tmpl.otag)
 
         if err == os.EOF {
-            return parseError { section.startline, "Section " + section.name + " has no closing tag" }
+            return parseError{section.startline, "Section " + section.name + " has no closing tag"}
         }
 
         // put text into an item
