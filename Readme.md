@@ -1,4 +1,4 @@
-### Note ###
+### Note
 
 This project recently changed its name from gostache to mustache.go. If you have a local copy, you'll need to modify the .git/config file in the project directory and change the 'url' property to:
     
