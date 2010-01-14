@@ -10,6 +10,20 @@ mustache.go is an implementation of the mustache template language in Go. It is 
 
 For more information about mustache, check out the [mustache project page] ( http://github.com/defunkt/mustache ).
 
+## Usage
+
+The Render method takes a string and a data source, which is either a map or struct. There's an analagous method, RenderFile, which takes a filename as an argument and uses that for the template contents. 
+
+    data,_ := mustache.Render("hello {{c}}", map[string]string{"c":"world"})
+    println(data)
+
+
+If you're planning to render the same template multiple times, you do it efficiently by compiling the template first:
+
+    tmpl,_ := mustache.Parse("hello {{c}}")
+    var buf bytes.Buffer;
+    tmpl.Render (map[string]string { "c":"world"}, &buf)  
+
 ## Supported features
 
 * Variables
