@@ -33,8 +33,9 @@ If you're planning to render the same template multiple times, you do it efficie
 
     tmpl,_ := mustache.Parse("hello {{c}}")
     var buf bytes.Buffer;
-    tmpl.Render (map[string]string { "c":"world"}, &buf)  
-
+    for i :- 0; i < 10; i++ {
+        tmpl.Render (map[string]string { "c":"world"}, &buf)  
+    }
 ## Supported features
 
 * Variables
