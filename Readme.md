@@ -12,6 +12,17 @@ For more information about mustache, check out the [mustache project page] ( htt
 
 ## Usage
 
+There are only four methods in this package:
+
+    func Render(data string, context interface{}) (string, os.Error)
+    
+    func RenderFile(filename string, context interface{}) (string, os.Error)
+    
+    func ParseString(data string) (*template, os.Error)
+    
+    func ParseFile(filename string) (*template, os.Error) 
+
+
 The Render method takes a string and a data source, which is either a map or struct. There's an analagous method, RenderFile, which takes a filename as an argument and uses that for the template contents. 
 
     data,_ := mustache.Render("hello {{c}}", map[string]string{"c":"world"})
