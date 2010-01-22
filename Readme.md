@@ -8,7 +8,11 @@ This project recently changed its name from gostache to mustache.go. If you have
 
 mustache.go is an implementation of the mustache template language in Go. It is better suited for website templates than Go's native pkg/template. mustache.go is fast -- it parses templates efficiently and stores them in a tree-like structure which allows for fast execution. 
 
+## Documentation
+
 For more information about mustache, check out the [mustache project page] ( http://github.com/defunkt/mustache ).
+
+Also check out some [example mustache files](http://github.com/defunkt/mustache/tree/master/examples/)
 
 ## Usage
 
@@ -36,6 +40,9 @@ If you're planning to render the same template multiple times, you do it efficie
     for i := 0; i < 10; i++ {
         tmpl.Render (map[string]string { "c":"world"}, &buf)  
     }
+
+For more example usage, please see `mustache_test.go`
+
 ## Supported features
 
 * Variables
