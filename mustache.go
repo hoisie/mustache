@@ -290,7 +290,7 @@ func renderElement(element interface{}, context reflect.Value, buf io.Writer) {
     case *varElement:
         val := lookup(context, elem.name)
         if val != nil {
-            buf.Write(strings.Bytes(val.(*reflect.StringValue).Get()))
+            fmt.Fprint(buf, val.Interface())
         }
     case *sectionElement:
         renderSection(elem, context, buf)
