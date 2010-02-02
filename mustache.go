@@ -222,7 +222,6 @@ func (tmpl *template) parse() os.Error {
 }
 
 func lookup(context reflect.Value, name string) reflect.Value {
-
     //if the context is an interface, get the actual value
     if iface, ok := context.(*reflect.InterfaceValue); ok && !iface.IsNil() {
         context = iface.Elem()
@@ -250,9 +249,12 @@ func lookup(context reflect.Value, name string) reflect.Value {
 
 func renderSection(section *sectionElement, context reflect.Value, buf io.Writer) {
     value := lookup(context, section.name)
+
+    valueInd := reflect.Indirect(value)
+
     var contexts = new(vector.Vector)
 
-    switch val := value.(type) {
+    switch val := valueInd.(type) {
     case *reflect.BoolValue:
         if !val.Get() {
             return
@@ -281,6 +283,7 @@ func renderSection(section *sectionElement, context reflect.Value, buf io.Writer
 }
 
 func renderElement(element interface{}, context reflect.Value, buf io.Writer) {
+
     switch elem := element.(type) {
     case *textElement:
         buf.Write(elem.text)

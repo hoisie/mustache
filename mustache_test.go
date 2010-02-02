@@ -23,6 +23,12 @@ type User struct {
     Id   int64
 }
 
+func makeVector() *vector.Vector {
+    v := new(vector.Vector)
+    v.Push(&User{"Mike", 1})
+    return v
+}
+
 var tests = []Test{
     Test{`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
     Test{`{{a}}{{b}}{{c}}{{d}}`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "abcd"},
@@ -48,6 +54,7 @@ var tests = []Test{
     Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
     Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
     Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": vector.Vector([]interface{}{&User{"Mike", 12}})}, "Mike"},
+    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": makeVector()}, "Mike"},
 }
 
 func TestBasic(t *testing.T) {
@@ -82,4 +89,3 @@ func TestPartial(t *testing.T) {
         t.Fatalf("testpartial expected %q got %q", expected, output)
     }
 }
-
