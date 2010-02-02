@@ -1,6 +1,7 @@
 package mustache
 
 import (
+    "container/vector"
     "os"
     "path"
     "testing"
@@ -12,6 +13,16 @@ type Test struct {
     expected string
 }
 
+type Data struct {
+    a   bool
+    b   string
+}
+
+type User struct {
+    Name string
+    Id   int64
+}
+
 var tests = []Test{
     Test{`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
     Test{`{{a}}{{b}}{{c}}{{d}}`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "abcd"},
@@ -21,18 +32,8 @@ var tests = []Test{
     Test{`{{ a }}{{= <% %> =}}<%b %><%= {{ }}=%>{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
 
     //section tests
-    Test{`{{#a}}{{b}}{{/a}}`, struct {
-        a   bool
-        b   string
-    }{true, "hello"},
-        "hello",
-    },
-    Test{`{{#a}}{{b}}{{/a}}`, struct {
-        a   bool
-        b   string
-    }{false, "hello"},
-        "",
-    },
+    Test{`{{#a}}{{b}}{{/a}}`, Data{true, "hello"}, "hello"},
+    Test{`{{#a}}{{b}}{{/a}}`, Data{false, "hello"}, ""},
     Test{`{{a}}{{#b}}{{b}}{{/b}}{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
     Test{`{{#a}}{{b}}{{/a}}`, struct {
         a []struct {
@@ -44,6 +45,9 @@ var tests = []Test{
         "abc",
     },
     Test{`{{#a}}{{b}}{{/a}}`, struct{ a []map[string]string }{[]map[string]string{map[string]string{"b": "a"}, map[string]string{"b": "b"}, map[string]string{"b": "c"}}}, "abc"},
+    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
+    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": vector.Vector([]interface{}{&User{"Mike", 12}})}, "Mike"},
 }
 
 func TestBasic(t *testing.T) {
@@ -78,3 +82,4 @@ func TestPartial(t *testing.T) {
         t.Fatalf("testpartial expected %q got %q", expected, output)
     }
 }
+

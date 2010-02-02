@@ -223,14 +223,29 @@ func (tmpl *template) parse() os.Error {
 
 func lookup(context reflect.Value, name string) reflect.Value {
 
-    switch val := context.(type) {
-    case *reflect.MapValue:
-        return val.Elem(reflect.NewValue(name))
-    case *reflect.StructValue:
-        return val.FieldByName(name)
+    //if the context is an interface, get the actual value
+    if iface, ok := context.(*reflect.InterfaceValue); ok && !iface.IsNil() {
+        context = iface.Elem()
     }
 
-    return nil
+    //the context may be a pointer, so do an indirect
+    contextInd := reflect.Indirect(context)
+
+    var ret reflect.Value = nil
+
+    switch val := contextInd.(type) {
+    case *reflect.MapValue:
+        ret = val.Elem(reflect.NewValue(name))
+    case *reflect.StructValue:
+        ret = val.FieldByName(name)
+    }
+
+    //if the lookup value is an interface, return the actual value
+    if iface, ok := ret.(*reflect.InterfaceValue); ok && !iface.IsNil() {
+        ret = iface.Elem()
+    }
+
+    return ret
 }
 
 func renderSection(section *sectionElement, context reflect.Value, buf io.Writer) {
