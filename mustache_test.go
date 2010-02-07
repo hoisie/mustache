@@ -23,9 +23,11 @@ type User struct {
     Id   int64
 }
 
-func makeVector() *vector.Vector {
+func makeVector(n int) *vector.Vector {
     v := new(vector.Vector)
-    v.Push(&User{"Mike", 1})
+    for i := 0; i < n; i++ {
+        v.Push(&User{"Mike", 1})
+    }
     return v
 }
 
@@ -54,7 +56,11 @@ var tests = []Test{
     Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
     Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
     Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": vector.Vector([]interface{}{&User{"Mike", 12}})}, "Mike"},
-    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": makeVector()}, "Mike"},
+    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": makeVector(1)}, "Mike"},
+    Test{`{{Name}}`, User{"Mike", 1}, "Mike"},
+    Test{`{{Name}}`, &User{"Mike", 1}, "Mike"},
+    Test{"{{#users}}\n{{Name}}\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\nMike\n"},
+    Test{"{{#users}}\r\n{{Name}}\r\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\r\nMike\r\n"},
 }
 
 func TestBasic(t *testing.T) {

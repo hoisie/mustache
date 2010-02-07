@@ -73,6 +73,7 @@ func (tmpl *template) readString(s string) (string, os.Error) {
             e := i + len(s)
             text := tmpl.data[tmpl.p:e]
             tmpl.p = e
+
             tmpl.curline += newlines
             return text, nil
         } else {
@@ -122,6 +123,13 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
             break
         case '#':
             name := strings.TrimSpace(tag[1:])
+
+            if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
+                tmpl.p += 1
+            } else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
+                tmpl.p += 2
+            }
+
             se := sectionElement{name, tmpl.curline, new(vector.Vector)}
             err := tmpl.parseSection(&se)
             if err != nil {
@@ -188,6 +196,13 @@ func (tmpl *template) parse() os.Error {
             break
         case '#':
             name := strings.TrimSpace(tag[1:])
+
+            if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
+                tmpl.p += 1
+            } else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
+                tmpl.p += 2
+            }
+
             se := sectionElement{name, tmpl.curline, new(vector.Vector)}
             err := tmpl.parseSection(&se)
             if err != nil {
