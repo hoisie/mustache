@@ -117,6 +117,9 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
 
         //trim the close tag off the text
         tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
+        if len(tag) == 0 {
+            return parseError{tmpl.curline, "empty tag"}
+        }
         switch tag[0] {
         case '!':
             //ignore comment
@@ -190,6 +193,9 @@ func (tmpl *template) parse() os.Error {
 
         //trim the close tag off the text
         tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
+        if len(tag) == 0 {
+            return parseError{tmpl.curline, "empty tag"}
+        }
         switch tag[0] {
         case '!':
             //ignore comment

@@ -4,6 +4,7 @@ import (
     "container/vector"
     "os"
     "path"
+    "strings"
     "testing"
 )
 
@@ -93,5 +94,23 @@ func TestPartial(t *testing.T) {
         t.Fatalf("Error in test2.mustache", err.String())
     } else if output != expected {
         t.Fatalf("testpartial expected %q got %q", expected, output)
+    }
+}
+
+var malformed = []Test{
+    Test{`{{#a}}{{}}{{/a}}`, Data{true, "hello"}, "empty tag"},
+    Test{`{{}}`, nil, "empty tag"},
+    Test{`{{}`, nil, "unmatched open tag"},
+    Test{`{{`, nil, "unmatched open tag"},
+}
+
+func TestMalformed(t *testing.T) {
+    for _, test := range (malformed) {
+        _, err := Render(test.tmpl, test.context)
+        if err == nil {
+            t.Fatalf("%q expected error, got none", test.tmpl)
+        } else if strings.Index(err.String(), test.expected) == -1 {
+            t.Fatalf("%q expected %q in error %q", test.tmpl, test.expected, err.String())
+        }
     }
 }
