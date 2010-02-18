@@ -65,7 +65,7 @@ var tests = []Test{
 }
 
 func TestBasic(t *testing.T) {
-    for _, test := range (tests) {
+    for _, test := range tests {
         output, err := Render(test.tmpl, test.context)
         if err != nil {
             t.Fatalf("%q got error %q", test.tmpl, err.String())
@@ -105,7 +105,7 @@ var malformed = []Test{
 }
 
 func TestMalformed(t *testing.T) {
-    for _, test := range (malformed) {
+    for _, test := range malformed {
         _, err := Render(test.tmpl, test.context)
         if err == nil {
             t.Fatalf("%q expected error, got none", test.tmpl)
