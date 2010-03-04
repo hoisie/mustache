@@ -107,7 +107,7 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
 
         // put text into an item
         text = text[0 : len(text)-len(tmpl.otag)]
-        section.elems.Push(&textElement{strings.Bytes(text)})
+        section.elems.Push(&textElement{[]byte(text)})
 
         text, err = tmpl.readString(tmpl.ctag)
         if err == os.EOF {
@@ -127,6 +127,7 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
         case '#':
             name := strings.TrimSpace(tag[1:])
 
+            //ignore the newline when a section starts
             if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
                 tmpl.p += 1
             } else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
@@ -177,13 +178,13 @@ func (tmpl *template) parse() os.Error {
 
         if err == os.EOF {
             //put the remaining text in a block
-            tmpl.elems.Push(&textElement{strings.Bytes(text)})
+            tmpl.elems.Push(&textElement{[]byte(text)})
             return nil
         }
 
         // put text into an item
         text = text[0 : len(text)-len(tmpl.otag)]
-        tmpl.elems.Push(&textElement{strings.Bytes(text)})
+        tmpl.elems.Push(&textElement{[]byte(text)})
 
         text, err = tmpl.readString(tmpl.ctag)
         if err == os.EOF {
