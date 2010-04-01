@@ -156,7 +156,7 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
             tmpl.elems.Push(partial)
         case '=':
             if tag[len(tag)-1] != '=' {
-                panicln("Invalid meta tag")
+                return parseError{tmpl.curline, "Invalid meta tag"}
             }
             tag = strings.TrimSpace(tag[1 : len(tag)-1])
             newtags := strings.Split(tag, " ", 0)
@@ -227,7 +227,7 @@ func (tmpl *template) parse() os.Error {
             tmpl.elems.Push(partial)
         case '=':
             if tag[len(tag)-1] != '=' {
-                panicln("Invalid meta tag")
+                return parseError{tmpl.curline, "Invalid meta tag"}
             }
             tag = strings.TrimSpace(tag[1 : len(tag)-1])
             newtags := strings.Split(tag, " ", 0)
