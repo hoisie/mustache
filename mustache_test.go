@@ -24,6 +24,14 @@ type User struct {
     Id   int64
 }
 
+func (u User) func1() string {
+    return u.Name
+}
+
+func (u *User) func2() string {
+    return u.Name
+}
+
 func makeVector(n int) *vector.Vector {
     v := new(vector.Vector)
     for i := 0; i < n; i++ {
@@ -62,6 +70,11 @@ var tests = []Test{
     Test{`{{Name}}`, &User{"Mike", 1}, "Mike"},
     Test{"{{#users}}\n{{Name}}\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\nMike\n"},
     Test{"{{#users}}\r\n{{Name}}\r\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\r\nMike\r\n"},
+
+    //function tests
+    Test{`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
+    Test{`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+    Test{`{{#users}}{{func2}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
 }
 
 func TestBasic(t *testing.T) {

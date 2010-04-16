@@ -243,6 +243,54 @@ func (tmpl *template) parse() os.Error {
     return nil
 }
 
+// See if name is a method of the value at some level of indirection.
+// The return values are the result of the call (which may be nil if
+// there's trouble) and whether a method of the right name exists with
+// any signature.
+func callMethod(data reflect.Value, name string) (result reflect.Value, found bool) {
+    found = false
+    // Method set depends on pointerness, and the value may be arbitrarily
+    // indirect.  Simplest approach is to walk down the pointer chain and
+    // see if we can find the method at each step.
+    // Most steps will see NumMethod() == 0.
+    for {
+        typ := data.Type()
+        if nMethod := data.Type().NumMethod(); nMethod > 0 {
+            for i := 0; i < nMethod; i++ {
+                method := typ.Method(i)
+                if method.Name == name {
+                    found = true // we found the name regardless
+                    // does receiver type match? (pointerness might be off)
+                    if typ == method.Type.In(0) {
+                        return call(data, method), found
+                    }
+                }
+            }
+        }
+        if nd, ok := data.(*reflect.PtrValue); ok {
+            data = nd.Elem()
+        } else {
+            break
+        }
+    }
+    return
+}
+
+// Invoke the method. If its signature is wrong, return nil.
+func call(v reflect.Value, method reflect.Method) reflect.Value {
+    funcType := method.Type
+    // Method must take no arguments, meaning as a func it has one argument (the receiver)
+    if funcType.NumIn() != 1 {
+        return nil
+    }
+    // Method must return a single value.
+    if funcType.NumOut() != 1 {
+        return nil
+    }
+    // Result will be the zeroth element of the returned slice.
+    return method.Func.Call([]reflect.Value{v})[0]
+}
+
 func lookup(context reflect.Value, name string) reflect.Value {
     //if the context is an interface, get the actual value
     if iface, ok := context.(*reflect.InterfaceValue); ok && !iface.IsNil() {
@@ -258,7 +306,15 @@ func lookup(context reflect.Value, name string) reflect.Value {
     case *reflect.MapValue:
         ret = val.Elem(reflect.NewValue(name))
     case *reflect.StructValue:
+        //look for a field
         ret = val.FieldByName(name)
+    }
+
+    //look for a method
+    if ret == nil {
+        if result, found := callMethod(context, name); found {
+            ret = result
+        }
     }
 
     //if the lookup value is an interface, return the actual value
