@@ -328,7 +328,12 @@ func lookup(context reflect.Value, name string) reflect.Value {
 func renderSection(section *sectionElement, context reflect.Value, buf io.Writer) {
     value := lookup(context, section.name)
 
+    if value.Interface() == nil {
+        return
+    }
+
     valueInd := reflect.Indirect(value)
+    //if the section is nil, we shouldn't do anything
 
     var contexts = new(vector.Vector)
 
