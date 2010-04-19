@@ -26,7 +26,7 @@ type sectionElement struct {
     elems     *vector.Vector
 }
 
-type template struct {
+type Template struct {
     data    string
     otag    string
     ctag    string
@@ -43,7 +43,7 @@ type parseError struct {
 
 func (p parseError) String() string { return fmt.Sprintf("line %d: %s", p.line, p.message) }
 
-func (tmpl *template) readString(s string) (string, os.Error) {
+func (tmpl *Template) readString(s string) (string, os.Error) {
     i := tmpl.p
     newlines := 0
     for true {
@@ -85,7 +85,7 @@ func (tmpl *template) readString(s string) (string, os.Error) {
     return "", nil
 }
 
-func (tmpl *template) parsePartial(name string) (*template, os.Error) {
+func (tmpl *Template) parsePartial(name string) (*Template, os.Error) {
     filename := path.Join(tmpl.dir, name+".mustache")
 
     partial, err := ParseFile(filename)
@@ -97,7 +97,7 @@ func (tmpl *template) parsePartial(name string) (*template, os.Error) {
     return partial, nil
 }
 
-func (tmpl *template) parseSection(section *sectionElement) os.Error {
+func (tmpl *Template) parseSection(section *sectionElement) os.Error {
     for {
         text, err := tmpl.readString(tmpl.otag)
 
@@ -172,7 +172,7 @@ func (tmpl *template) parseSection(section *sectionElement) os.Error {
     return nil
 }
 
-func (tmpl *template) parse() os.Error {
+func (tmpl *Template) parse() os.Error {
     for {
         text, err := tmpl.readString(tmpl.otag)
 
@@ -377,25 +377,25 @@ func renderElement(element interface{}, context reflect.Value, buf io.Writer) {
         }
     case *sectionElement:
         renderSection(elem, context, buf)
-    case *template:
+    case *Template:
         elem.renderTemplate(context, buf)
     }
 }
 
-func (tmpl *template) renderTemplate(context reflect.Value, buf io.Writer) {
+func (tmpl *Template) renderTemplate(context reflect.Value, buf io.Writer) {
     for i := 0; i < tmpl.elems.Len(); i++ {
         renderElement(tmpl.elems.At(i), context, buf)
     }
 }
 
-func (tmpl *template) Render(context interface{}, buf io.Writer) {
+func (tmpl *Template) Render(context interface{}, buf io.Writer) {
     val := reflect.NewValue(context)
     tmpl.renderTemplate(val, buf)
 }
 
-func ParseString(data string) (*template, os.Error) {
+func ParseString(data string) (*Template, os.Error) {
     cwd := os.Getenv("CWD")
-    tmpl := template{data, "{{", "}}", 0, 1, cwd, new(vector.Vector)}
+    tmpl := Template{data, "{{", "}}", 0, 1, cwd, new(vector.Vector)}
     err := tmpl.parse()
 
     if err != nil {
@@ -405,7 +405,7 @@ func ParseString(data string) (*template, os.Error) {
     return &tmpl, err
 }
 
-func ParseFile(filename string) (*template, os.Error) {
+func ParseFile(filename string) (*Template, os.Error) {
     data, err := ioutil.ReadFile(filename)
 
     if err != nil {
@@ -414,7 +414,7 @@ func ParseFile(filename string) (*template, os.Error) {
 
     dirname, _ := path.Split(filename)
 
-    tmpl := template{string(data), "{{", "}}", 0, 1, dirname, new(vector.Vector)}
+    tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, new(vector.Vector)}
     err = tmpl.parse()
 
     if err != nil {
