@@ -153,7 +153,7 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
             if err != nil {
                 return err
             }
-            tmpl.elems.Push(partial)
+            section.elems.Push(partial)
         case '=':
             if tag[len(tag)-1] != '=' {
                 return parseError{tmpl.curline, "Invalid meta tag"}
@@ -284,7 +284,7 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
         return nil
     }
     // Method must return a single value.
-    if funcType.NumOut() != 1 {
+    if funcType.NumOut() == 0 {
         return nil
     }
     // Result will be the zeroth element of the returned slice.
@@ -296,7 +296,6 @@ func lookup(context reflect.Value, name string) reflect.Value {
     if iface, ok := context.(*reflect.InterfaceValue); ok && !iface.IsNil() {
         context = iface.Elem()
     }
-
     //the context may be a pointer, so do an indirect
     contextInd := reflect.Indirect(context)
 
@@ -327,8 +326,7 @@ func lookup(context reflect.Value, name string) reflect.Value {
 
 func renderSection(section *sectionElement, context reflect.Value, buf io.Writer) {
     value := lookup(context, section.name)
-
-    if value.Interface() == nil {
+    if value == nil || value.Interface() == nil {
         return
     }
 
@@ -352,6 +350,8 @@ func renderSection(section *sectionElement, context reflect.Value, buf io.Writer
         for i := 0; i < val.Len(); i++ {
             contexts.Push(val.Elem(i))
         }
+    case *reflect.MapValue:
+        contexts.Push(val)
     default:
         contexts.Push(context)
     }
