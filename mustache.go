@@ -259,6 +259,7 @@ func callMethod(data reflect.Value, name string) (result reflect.Value, found bo
             for i := 0; i < nMethod; i++ {
                 method := typ.Method(i)
                 if method.Name == name {
+
                     found = true // we found the name regardless
                     // does receiver type match? (pointerness might be off)
                     if typ == method.Type.In(0) {
@@ -332,7 +333,6 @@ func renderSection(section *sectionElement, context reflect.Value, buf io.Writer
 
     valueInd := reflect.Indirect(value)
     //if the section is nil, we shouldn't do anything
-
     var contexts = new(vector.Vector)
 
     switch val := valueInd.(type) {
@@ -350,7 +350,7 @@ func renderSection(section *sectionElement, context reflect.Value, buf io.Writer
         for i := 0; i < val.Len(); i++ {
             contexts.Push(val.Elem(i))
         }
-    case *reflect.MapValue:
+    case *reflect.MapValue, *reflect.StructValue:
         contexts.Push(val)
     default:
         contexts.Push(context)
@@ -388,9 +388,16 @@ func (tmpl *Template) renderTemplate(context reflect.Value, buf io.Writer) {
     }
 }
 
-func (tmpl *Template) Render(context interface{}, buf io.Writer) {
+func (tmpl *Template) Render(context interface{}) string {
     val := reflect.NewValue(context)
-    tmpl.renderTemplate(val, buf)
+    var buf bytes.Buffer
+    tmpl.renderTemplate(val, &buf)
+    return buf.String()
+}
+
+func (tmpl *Template) RenderWriter(context interface{}, writer io.Writer) {
+    val := reflect.NewValue(context)
+    tmpl.renderTemplate(val, writer)
 }
 
 func ParseString(data string) (*Template, os.Error) {
@@ -407,7 +414,6 @@ func ParseString(data string) (*Template, os.Error) {
 
 func ParseFile(filename string) (*Template, os.Error) {
     data, err := ioutil.ReadFile(filename)
-
     if err != nil {
         return nil, err
     }
@@ -431,10 +437,7 @@ func Render(data string, context interface{}) (string, os.Error) {
         return "", err
     }
 
-    var buf bytes.Buffer
-    tmpl.Render(context, &buf)
-
-    return buf.String(), nil
+    return tmpl.Render(context), nil
 }
 
 func RenderFile(filename string, context interface{}) (string, os.Error) {
@@ -444,8 +447,5 @@ func RenderFile(filename string, context interface{}) (string, os.Error) {
         return "", err
     }
 
-    var buf bytes.Buffer
-    tmpl.Render(context, &buf)
-
-    return buf.String(), nil
+    return tmpl.Render(context), nil
 }

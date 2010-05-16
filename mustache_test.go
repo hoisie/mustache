@@ -24,6 +24,10 @@ type User struct {
     Id   int64
 }
 
+type settings struct {
+    Allow bool
+}
+
 func (u User) func1() string {
     return u.Name
 }
@@ -39,6 +43,11 @@ func (u *User) func3() (map[string]string, os.Error) {
 func (u *User) func4() (map[string]string, os.Error) {
     return nil, nil
 }
+
+func (u *User) func5() (*settings, os.Error) {
+    return &settings{true}, nil
+}
+
 
 func (u User) truefunc1() bool {
     return true
@@ -57,6 +66,7 @@ func makeVector(n int) *vector.Vector {
 }
 
 var tests = []Test{
+
     Test{`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
     Test{`{{a}}{{b}}{{c}}{{d}}`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "abcd"},
     Test{`0{{a}}1{{b}}23{{c}}456{{d}}89`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "0a1b23c456d89"},
@@ -104,6 +114,8 @@ var tests = []Test{
     Test{`{{#truefunc1}}abcd{{/truefunc1}}`, User{"Mike", 1}, "abcd"},
     Test{`{{#truefunc1}}abcd{{/truefunc1}}`, &User{"Mike", 1}, "abcd"},
     Test{`{{#truefunc2}}abcd{{/truefunc2}}`, &User{"Mike", 1}, "abcd"},
+
+    Test{`{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}`, &User{"Mike", 1}, "abcd"},
 }
 
 func TestBasic(t *testing.T) {
