@@ -86,7 +86,24 @@ func (tmpl *Template) readString(s string) (string, os.Error) {
 }
 
 func (tmpl *Template) parsePartial(name string) (*Template, os.Error) {
-    filename := path.Join(tmpl.dir, name+".mustache")
+    filenames := []string{
+        name,
+        name + ".mustache",
+        name + ".stache",
+    }
+    var filename string
+    for _, base := range filenames {
+        name = path.Join(tmpl.dir, base)
+        f, err := os.Open(name, os.O_RDONLY, 0666)
+        f.Close()
+        if err == nil {
+            filename = name
+            break
+        }
+    }
+    if filename == "" {
+        return nil, os.NewError(fmt.Sprintf("Could not find partial %q", name))
+    }
 
     partial, err := ParseFile(filename)
 
