@@ -94,7 +94,9 @@ var tests = []Test{
         "abc",
     },
     Test{`{{#a}}{{b}}{{/a}}`, struct{ a []map[string]string }{[]map[string]string{map[string]string{"b": "a"}, map[string]string{"b": "b"}, map[string]string{"b": "c"}}}, "abc"},
+
     Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
+
     Test{`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": nil}, ""},
     Test{`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": []User{}}, ""},
     Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
@@ -109,13 +111,14 @@ var tests = []Test{
     Test{`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
     Test{`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
     Test{`{{#users}}{{func2}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+
     Test{`{{#users}}{{#func3}}{{name}}{{/func3}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
     Test{`{{#users}}{{#func4}}{{name}}{{/func4}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, ""},
     Test{`{{#truefunc1}}abcd{{/truefunc1}}`, User{"Mike", 1}, "abcd"},
     Test{`{{#truefunc1}}abcd{{/truefunc1}}`, &User{"Mike", 1}, "abcd"},
     Test{`{{#truefunc2}}abcd{{/truefunc2}}`, &User{"Mike", 1}, "abcd"},
-
     Test{`{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}`, &User{"Mike", 1}, "abcd"},
+    Test{`{{#user}}{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
 }
 
 func TestBasic(t *testing.T) {

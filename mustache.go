@@ -87,13 +87,15 @@ func (tmpl *Template) readString(s string) (string, os.Error) {
 
 func (tmpl *Template) parsePartial(name string) (*Template, os.Error) {
     filenames := []string{
+        path.Join(tmpl.dir, name),
+        path.Join(tmpl.dir, name+".mustache"),
+        path.Join(tmpl.dir, name+".stache"),
         name,
         name + ".mustache",
         name + ".stache",
     }
     var filename string
-    for _, base := range filenames {
-        name = path.Join(tmpl.dir, base)
+    for _, name := range filenames {
         f, err := os.Open(name, os.O_RDONLY, 0666)
         f.Close()
         if err == nil {
@@ -309,47 +311,63 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
     return method.Func.Call([]reflect.Value{v})[0]
 }
 
-func lookup(context reflect.Value, name string) reflect.Value {
-    //if the context is an interface, get the actual value
-    if iface, ok := context.(*reflect.InterfaceValue); ok && !iface.IsNil() {
-        context = iface.Elem()
-    }
-    //the context may be a pointer, so do an indirect
-    contextInd := reflect.Indirect(context)
-
-    var ret reflect.Value = nil
-
-    switch val := contextInd.(type) {
-    case *reflect.MapValue:
-        ret = val.Elem(reflect.NewValue(name))
-    case *reflect.StructValue:
-        //look for a field
-        ret = val.FieldByName(name)
-    }
-
-    //look for a method
-    if ret == nil {
-        if result, found := callMethod(context, name); found {
-            ret = result
+// Evaluate interfaces and pointers looking for a value that can look up the name, via a
+// struct field, method, or map key, and return the result of the lookup.
+func lookup(v reflect.Value, name string) reflect.Value {
+    for v != nil {
+        typ := v.Type()
+        if n := v.Type().NumMethod(); n > 0 {
+            for i := 0; i < n; i++ {
+                m := typ.Method(i)
+                mtyp := m.Type
+                // We must check receiver type because of a bug in the reflection type tables:
+                // it should not be possible to find a method with the wrong receiver type but
+                // this can happen due to value/pointer receiver mismatch.
+                if m.Name == name && mtyp.NumIn() == 1 && mtyp.In(0) == typ {
+                    return v.Method(i).Call(nil)[0]
+                }
+            }
+        }
+        switch av := v.(type) {
+        case *reflect.PtrValue:
+            v = av.Elem()
+        case *reflect.InterfaceValue:
+            v = av.Elem()
+        case *reflect.StructValue:
+            return av.FieldByName(name)
+        case *reflect.MapValue:
+            return av.Elem(reflect.NewValue(name))
+        default:
+            return nil
         }
     }
+    return v
+}
 
-    //if the lookup value is an interface, return the actual value
-    if iface, ok := ret.(*reflect.InterfaceValue); ok && !iface.IsNil() {
-        ret = iface.Elem()
+func indirect(v reflect.Value) reflect.Value {
+loop:
+    for v != nil {
+        switch av := v.(type) {
+        case *reflect.PtrValue:
+            v = av.Elem()
+        case *reflect.InterfaceValue:
+            v = av.Elem()
+        default:
+            break loop
+        }
     }
-
-    return ret
+    return v
 }
 
 func renderSection(section *sectionElement, context reflect.Value, buf io.Writer) {
     value := lookup(context, section.name)
+    //if the section is nil, we shouldn't do anything
     if value == nil || value.Interface() == nil {
         return
     }
 
-    valueInd := reflect.Indirect(value)
-    //if the section is nil, we shouldn't do anything
+    valueInd := indirect(value)
+
     var contexts = new(vector.Vector)
 
     switch val := valueInd.(type) {
@@ -368,7 +386,7 @@ func renderSection(section *sectionElement, context reflect.Value, buf io.Writer
             contexts.Push(val.Elem(i))
         }
     case *reflect.MapValue, *reflect.StructValue:
-        contexts.Push(val)
+        contexts.Push(value)
     default:
         contexts.Push(context)
     }
