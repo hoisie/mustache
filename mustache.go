@@ -22,6 +22,7 @@ type varElement struct {
 
 type sectionElement struct {
     name      string
+    inverted  bool
     startline int
     elems     *vector.Vector
 }
@@ -143,7 +144,7 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
         case '!':
             //ignore comment
             break
-        case '#':
+        case '#', '^':
             name := strings.TrimSpace(tag[1:])
 
             //ignore the newline when a section starts
@@ -153,7 +154,7 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
                 tmpl.p += 2
             }
 
-            se := sectionElement{name, tmpl.curline, new(vector.Vector)}
+            se := sectionElement{name, tag[0] == '^', tmpl.curline, new(vector.Vector)}
             err := tmpl.parseSection(&se)
             if err != nil {
                 return err
@@ -220,7 +221,7 @@ func (tmpl *Template) parse() os.Error {
         case '!':
             //ignore comment
             break
-        case '#':
+        case '#', '^':
             name := strings.TrimSpace(tag[1:])
 
             if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
@@ -229,7 +230,7 @@ func (tmpl *Template) parse() os.Error {
                 tmpl.p += 2
             }
 
-            se := sectionElement{name, tmpl.curline, new(vector.Vector)}
+            se := sectionElement{name, tag[0] == '^', tmpl.curline, new(vector.Vector)}
             err := tmpl.parseSection(&se)
             if err != nil {
                 return err
@@ -361,34 +362,40 @@ loop:
 
 func renderSection(section *sectionElement, context reflect.Value, buf io.Writer) {
     value := lookup(context, section.name)
-    //if the section is nil, we shouldn't do anything
-    if value == nil || value.Interface() == nil {
-        return
-    }
-
-    valueInd := indirect(value)
-
     var contexts = new(vector.Vector)
-
-    switch val := valueInd.(type) {
-    case *reflect.BoolValue:
-        if !val.Get() {
-            return
+    // if the value is nil, check if it's an inverted section
+    if value == nil || value.Interface() == nil {
+        if section.inverted {
+            contexts.Push(context)
         } else {
+            return
+        }
+    } else {
+        valueInd := indirect(value)
+        switch val := valueInd.(type) {
+        case *reflect.BoolValue:
+            if !val.Get() {
+                if section.inverted {
+                    contexts.Push(context)
+                } else {
+                    return
+                }
+            } else {
+                contexts.Push(context)
+            }
+        case *reflect.SliceValue:
+            for i := 0; i < val.Len(); i++ {
+                contexts.Push(val.Elem(i))
+            }
+        case *reflect.ArrayValue:
+            for i := 0; i < val.Len(); i++ {
+                contexts.Push(val.Elem(i))
+            }
+        case *reflect.MapValue, *reflect.StructValue:
+            contexts.Push(value)
+        default:
             contexts.Push(context)
         }
-    case *reflect.SliceValue:
-        for i := 0; i < val.Len(); i++ {
-            contexts.Push(val.Elem(i))
-        }
-    case *reflect.ArrayValue:
-        for i := 0; i < val.Len(); i++ {
-            contexts.Push(val.Elem(i))
-        }
-    case *reflect.MapValue, *reflect.StructValue:
-        contexts.Push(value)
-    default:
-        contexts.Push(context)
     }
 
     //by default we execute the section

@@ -49,6 +49,12 @@ func (u *User) func5() (*settings, os.Error) {
 }
 
 
+func (u *User) func6() (*vector.Vector, os.Error) {
+    var v vector.Vector
+    v.Push(&settings{true})
+    return &v, nil
+}
+
 func (u User) truefunc1() bool {
     return true
 }
@@ -107,6 +113,10 @@ var tests = []Test{
     Test{"{{#users}}\n{{Name}}\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\nMike\n"},
     Test{"{{#users}}\r\n{{Name}}\r\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\r\nMike\r\n"},
 
+    //inverted section tests
+    Test{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc"},
+    Test{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]interface{}{"a": "a", "b": false, "c": "c"}, "abc"},
+
     //function tests
     Test{`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
     Test{`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
@@ -119,6 +129,7 @@ var tests = []Test{
     Test{`{{#truefunc2}}abcd{{/truefunc2}}`, &User{"Mike", 1}, "abcd"},
     Test{`{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}`, &User{"Mike", 1}, "abcd"},
     Test{`{{#user}}{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
+    Test{`{{#user}}{{#func6}}{{#Allow}}abcd{{/Allow}}{{/func6}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
 }
 
 func TestBasic(t *testing.T) {
