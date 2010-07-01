@@ -4,7 +4,7 @@ mustache.go is an implementation of the mustache template language in Go. It is 
 
 ## Documentation
 
-For more information about mustache, check out the [mustache project page] ( http://github.com/defunkt/mustache ).
+For more information about mustache, check out the [mustache project page](http://github.com/defunkt/mustache).
 
 Also check out some [example mustache files](http://github.com/defunkt/mustache/tree/master/examples/)
 
@@ -42,7 +42,7 @@ For more example usage, please see `mustache_test.go`
 * Variables
 * Comments
 * Change delimiter
-* Sections (boolean and enumerable)
+* Sections (boolean, enumerable, and inverted)
 * Partials
 
 
