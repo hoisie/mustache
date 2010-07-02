@@ -4,7 +4,7 @@ mustache.go is an implementation of the mustache template language in Go. It is 
 
 ## Documentation
 
-For more information about mustache, check out the [mustache project page](http://github.com/defunkt/mustache).
+For more information about mustache, check out the [mustache project page](http://github.com/defunkt/mustache) or the [mustache manual](http://mustache.github.com/mustache.5.html).
 
 Also check out some [example mustache files](http://github.com/defunkt/mustache/tree/master/examples/)
 
