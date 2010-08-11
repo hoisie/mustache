@@ -314,35 +314,38 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
 
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
-func lookup(v reflect.Value, name string) reflect.Value {
-    for v != nil {
-        typ := v.Type()
-        if n := v.Type().NumMethod(); n > 0 {
-            for i := 0; i < n; i++ {
-                m := typ.Method(i)
-                mtyp := m.Type
-                // We must check receiver type because of a bug in the reflection type tables:
-                // it should not be possible to find a method with the wrong receiver type but
-                // this can happen due to value/pointer receiver mismatch.
-                if m.Name == name && mtyp.NumIn() == 1 && mtyp.In(0) == typ {
-                    return v.Method(i).Call(nil)[0]
+func lookup(contextChain *vector.Vector, name string) reflect.Value {
+    for i := contextChain.Len() - 1; i >= 0; i-- {
+        v := contextChain.At(i).(reflect.Value)
+        for v != nil {
+            typ := v.Type()
+            if n := v.Type().NumMethod(); n > 0 {
+                for i := 0; i < n; i++ {
+                    m := typ.Method(i)
+                    mtyp := m.Type
+                    // We must check receiver type because of a bug in the reflection type tables:
+                    // it should not be possible to find a method with the wrong receiver type but
+                    // this can happen due to value/pointer receiver mismatch.
+                    if m.Name == name && mtyp.NumIn() == 1 && mtyp.In(0) == typ {
+                        return v.Method(i).Call(nil)[0]
+                    }
                 }
             }
-        }
-        switch av := v.(type) {
-        case *reflect.PtrValue:
-            v = av.Elem()
-        case *reflect.InterfaceValue:
-            v = av.Elem()
-        case *reflect.StructValue:
-            return av.FieldByName(name)
-        case *reflect.MapValue:
-            return av.Elem(reflect.NewValue(name))
-        default:
-            return nil
+            switch av := v.(type) {
+            case *reflect.PtrValue:
+                v = av.Elem()
+            case *reflect.InterfaceValue:
+                v = av.Elem()
+            case *reflect.StructValue:
+                return av.FieldByName(name)
+            case *reflect.MapValue:
+                return av.Elem(reflect.NewValue(name))
+            default:
+                break
+            }
         }
     }
-    return v
+    return nil
 }
 
 func indirect(v reflect.Value) reflect.Value {
@@ -360,8 +363,9 @@ loop:
     return v
 }
 
-func renderSection(section *sectionElement, context reflect.Value, buf io.Writer) {
-    value := lookup(context, section.name)
+func renderSection(section *sectionElement, contextChain *vector.Vector, buf io.Writer) {
+    value := lookup(contextChain, section.name)
+    var context = contextChain.At(contextChain.Len() - 1).(reflect.Value)
     var contexts = new(vector.Vector)
     // if the value is nil, check if it's an inverted section
     if value == nil || value.Interface() == nil {
@@ -401,45 +405,47 @@ func renderSection(section *sectionElement, context reflect.Value, buf io.Writer
     //by default we execute the section
     for j := 0; j < contexts.Len(); j++ {
         ctx := contexts.At(j).(reflect.Value)
+        contextChain.Push(ctx)
         for i := 0; i < section.elems.Len(); i++ {
-            renderElement(section.elems.At(i), ctx, buf)
+            renderElement(section.elems.At(i), contextChain, buf)
         }
+        contextChain.Pop()
     }
 }
 
-func renderElement(element interface{}, context reflect.Value, buf io.Writer) {
-
+func renderElement(element interface{}, contextChain *vector.Vector, buf io.Writer) {
     switch elem := element.(type) {
     case *textElement:
         buf.Write(elem.text)
     case *varElement:
-        val := lookup(context, elem.name)
+        val := lookup(contextChain, elem.name)
         if val != nil {
             fmt.Fprint(buf, val.Interface())
         }
     case *sectionElement:
-        renderSection(elem, context, buf)
+        renderSection(elem, contextChain, buf)
     case *Template:
-        elem.renderTemplate(context, buf)
+        elem.renderTemplate(contextChain, buf)
     }
 }
 
-func (tmpl *Template) renderTemplate(context reflect.Value, buf io.Writer) {
+func (tmpl *Template) renderTemplate(contextChain *vector.Vector, buf io.Writer) {
     for i := 0; i < tmpl.elems.Len(); i++ {
-        renderElement(tmpl.elems.At(i), context, buf)
+        renderElement(tmpl.elems.At(i), contextChain, buf)
     }
 }
 
 func (tmpl *Template) Render(context interface{}) string {
-    val := reflect.NewValue(context)
     var buf bytes.Buffer
-    tmpl.renderTemplate(val, &buf)
+    tmpl.RenderWriter(context, &buf)
     return buf.String()
 }
 
 func (tmpl *Template) RenderWriter(context interface{}, writer io.Writer) {
+    var contextChain vector.Vector
     val := reflect.NewValue(context)
-    tmpl.renderTemplate(val, writer)
+    contextChain.Push(val)
+    tmpl.renderTemplate(&contextChain, writer)
 }
 
 func ParseString(data string) (*Template, os.Error) {

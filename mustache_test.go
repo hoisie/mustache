@@ -130,6 +130,10 @@ var tests = []Test{
     Test{`{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}`, &User{"Mike", 1}, "abcd"},
     Test{`{{#user}}{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
     Test{`{{#user}}{{#func6}}{{#Allow}}abcd{{/Allow}}{{/func6}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
+
+    //context chaining
+    Test{`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"section": map[string]string{"name": "world"}}, "hello world"},
+    Test{`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"name": "bob", "section": map[string]string{"name": "world"}}, "hello world"},
 }
 
 func TestBasic(t *testing.T) {
