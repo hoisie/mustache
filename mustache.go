@@ -315,6 +315,7 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
 func lookup(contextChain *vector.Vector, name string) reflect.Value {
+    Outer:
     for i := contextChain.Len() - 1; i >= 0; i-- {
         v := contextChain.At(i).(reflect.Value)
         for v != nil {
@@ -337,11 +338,21 @@ func lookup(contextChain *vector.Vector, name string) reflect.Value {
             case *reflect.InterfaceValue:
                 v = av.Elem()
             case *reflect.StructValue:
-                return av.FieldByName(name)
+                ret := av.FieldByName(name)
+                if ret != nil {
+			return ret	
+		} else {
+			continue Outer
+		}
             case *reflect.MapValue:
-                return av.Elem(reflect.NewValue(name))
+                ret := av.Elem(reflect.NewValue(name))
+                if ret != nil {
+			return ret	
+		} else {
+			continue Outer
+		}
             default:
-                break
+                continue Outer
             }
         }
     }

@@ -134,6 +134,8 @@ var tests = []Test{
     //context chaining
     Test{`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"section": map[string]string{"name": "world"}}, "hello world"},
     Test{`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"name": "bob", "section": map[string]string{"name": "world"}}, "hello world"},
+    Test{`hello {{#bool}}{{#section}}{{name}}{{/section}}{{/bool}}`, map[string]interface{}{"bool":true, "section": map[string]string{"name": "world"}}, "hello world"},
+    Test{`{{#users}}{{canvas}}{{/users}}`, map[string]interface{}{"canvas":"hello", "users": []User{User{"Mike", 1}}}, "hello"},
 }
 
 func TestBasic(t *testing.T) {
