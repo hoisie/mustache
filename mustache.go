@@ -315,7 +315,7 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
 func lookup(contextChain *vector.Vector, name string) reflect.Value {
-    Outer:
+Outer:
     for i := contextChain.Len() - 1; i >= 0; i-- {
         v := contextChain.At(i).(reflect.Value)
         for v != nil {
@@ -340,23 +340,37 @@ func lookup(contextChain *vector.Vector, name string) reflect.Value {
             case *reflect.StructValue:
                 ret := av.FieldByName(name)
                 if ret != nil {
-			return ret	
-		} else {
-			continue Outer
-		}
+                    return ret
+                } else {
+                    continue Outer
+                }
             case *reflect.MapValue:
                 ret := av.Elem(reflect.NewValue(name))
                 if ret != nil {
-			return ret	
-		} else {
-			continue Outer
-		}
+                    return ret
+                } else {
+                    continue Outer
+                }
             default:
                 continue Outer
             }
         }
     }
     return nil
+}
+
+func isNil(v reflect.Value) bool {
+    if v == nil || v.Interface() == nil {
+        return true
+    }
+
+    valueInd := indirect(v)
+    switch val := valueInd.(type) {
+    case *reflect.BoolValue:
+        return !val.Get()
+    }
+
+    return false
 }
 
 func indirect(v reflect.Value) reflect.Value {
@@ -379,25 +393,12 @@ func renderSection(section *sectionElement, contextChain *vector.Vector, buf io.
     var context = contextChain.At(contextChain.Len() - 1).(reflect.Value)
     var contexts = new(vector.Vector)
     // if the value is nil, check if it's an inverted section
-    if value == nil || value.Interface() == nil {
-        if section.inverted {
-            contexts.Push(context)
-        } else {
-            return
-        }
+    isNil := isNil(value)
+    if isNil && !section.inverted || !isNil && section.inverted {
+        return
     } else {
         valueInd := indirect(value)
         switch val := valueInd.(type) {
-        case *reflect.BoolValue:
-            if !val.Get() {
-                if section.inverted {
-                    contexts.Push(context)
-                } else {
-                    return
-                }
-            } else {
-                contexts.Push(context)
-            }
         case *reflect.SliceValue:
             for i := 0; i < val.Len(); i++ {
                 contexts.Push(val.Elem(i))

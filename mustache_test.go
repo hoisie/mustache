@@ -116,6 +116,9 @@ var tests = []Test{
     //inverted section tests
     Test{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc"},
     Test{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]interface{}{"a": "a", "b": false, "c": "c"}, "abc"},
+    Test{`{{^a}}b{{/a}}`, map[string]interface{}{"a": false}, "b"},
+    Test{`{{^a}}b{{/a}}`, map[string]interface{}{"a": true}, ""},
+    Test{`{{^a}}b{{/a}}`, map[string]interface{}{"a": "nonempty string"}, ""},
 
     //function tests
     Test{`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
@@ -134,8 +137,8 @@ var tests = []Test{
     //context chaining
     Test{`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"section": map[string]string{"name": "world"}}, "hello world"},
     Test{`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"name": "bob", "section": map[string]string{"name": "world"}}, "hello world"},
-    Test{`hello {{#bool}}{{#section}}{{name}}{{/section}}{{/bool}}`, map[string]interface{}{"bool":true, "section": map[string]string{"name": "world"}}, "hello world"},
-    Test{`{{#users}}{{canvas}}{{/users}}`, map[string]interface{}{"canvas":"hello", "users": []User{User{"Mike", 1}}}, "hello"},
+    Test{`hello {{#bool}}{{#section}}{{name}}{{/section}}{{/bool}}`, map[string]interface{}{"bool": true, "section": map[string]string{"name": "world"}}, "hello world"},
+    Test{`{{#users}}{{canvas}}{{/users}}`, map[string]interface{}{"canvas": "hello", "users": []User{User{"Mike", 1}}}, "hello"},
 }
 
 func TestBasic(t *testing.T) {
