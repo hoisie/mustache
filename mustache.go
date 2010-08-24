@@ -447,17 +447,15 @@ func (tmpl *Template) renderTemplate(contextChain *vector.Vector, buf io.Writer)
     }
 }
 
-func (tmpl *Template) Render(context interface{}) string {
+func (tmpl *Template) Render(context ...interface{}) string {
     var buf bytes.Buffer
-    tmpl.RenderWriter(context, &buf)
-    return buf.String()
-}
-
-func (tmpl *Template) RenderWriter(context interface{}, writer io.Writer) {
     var contextChain vector.Vector
-    val := reflect.NewValue(context)
-    contextChain.Push(val)
-    tmpl.renderTemplate(&contextChain, writer)
+    for _, c := range context {
+        val := reflect.NewValue(c)
+        contextChain.Push(val)
+    }
+    tmpl.renderTemplate(&contextChain, &buf)
+    return buf.String()
 }
 
 func ParseString(data string) (*Template, os.Error) {
@@ -490,22 +488,22 @@ func ParseFile(filename string) (*Template, os.Error) {
     return &tmpl, nil
 }
 
-func Render(data string, context interface{}) (string, os.Error) {
+func Render(data string, context ...interface{}) string {
     tmpl, err := ParseString(data)
 
     if err != nil {
-        return "", err
+        return err.String()
     }
 
-    return tmpl.Render(context), nil
+    return tmpl.Render(context)
 }
 
-func RenderFile(filename string, context interface{}) (string, os.Error) {
+func RenderFile(filename string, context ...interface{}) string {
     tmpl, err := ParseFile(filename)
 
     if err != nil {
-        return "", err
+        return err.String()
     }
 
-    return tmpl.Render(context), nil
+    return tmpl.Render(context)
 }

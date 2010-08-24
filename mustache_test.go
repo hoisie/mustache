@@ -143,10 +143,8 @@ var tests = []Test{
 
 func TestBasic(t *testing.T) {
     for _, test := range tests {
-        output, err := Render(test.tmpl, test.context)
-        if err != nil {
-            t.Fatalf("%q got error %q", test.tmpl, err.String())
-        } else if output != test.expected {
+        output := Render(test.tmpl, test.context)
+        if output != test.expected {
             t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
         }
     }
@@ -155,10 +153,8 @@ func TestBasic(t *testing.T) {
 func TestFile(t *testing.T) {
     filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test1.mustache")
     expected := "hello world"
-    output, err := RenderFile(filename, map[string]string{"name": "world"})
-    if err != nil {
-        t.Fatalf("Error in test1.mustache", err.String())
-    } else if output != expected {
+    output := RenderFile(filename, map[string]string{"name": "world"})
+    if output != expected {
         t.Fatalf("testfile expected %q got %q", expected, output)
     }
 }
@@ -166,10 +162,8 @@ func TestFile(t *testing.T) {
 func TestPartial(t *testing.T) {
     filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test2.mustache")
     expected := "hello world"
-    output, err := RenderFile(filename, map[string]string{"Name": "world"})
-    if err != nil {
-        t.Fatalf("Error in test2.mustache", err.String())
-    } else if output != expected {
+    output := RenderFile(filename, map[string]string{"Name": "world"})
+    if output != expected {
         t.Fatalf("testpartial expected %q got %q", expected, output)
     }
 }
@@ -177,13 +171,20 @@ func TestSectionPartial(t *testing.T) {
     filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test3.mustache")
     expected := "Mike\nJoe\n"
     context := map[string]interface{}{"users": []User{User{"Mike", 1}, User{"Joe", 2}}}
-    output, err := RenderFile(filename, context)
-    if err != nil {
-        t.Fatalf("Error in test3.mustache %q", err.String())
-    } else if output != expected {
+    output := RenderFile(filename, context)
+    if output != expected {
         t.Fatalf("testSectionPartial expected %q got %q", expected, output)
     }
 }
+
+func TestMultiContext(t *testing.T) {
+    output := Render(`{{hello}} {{world}}`, map[string]string{"hello": "hello"}, struct{ world string }{"world"})
+    output2 := Render(`{{hello}} {{world}}`, struct{ world string }{"world"}, map[string]string{"hello": "hello"})
+    if output != "hello world" || output2 != "hello world" {
+        t.Fatalf("TestMultiContext expected %q got %q", "hello world", output)
+    }
+}
+
 
 var malformed = []Test{
     Test{`{{#a}}{{}}{{/a}}`, Data{true, "hello"}, "empty tag"},
@@ -194,11 +195,9 @@ var malformed = []Test{
 
 func TestMalformed(t *testing.T) {
     for _, test := range malformed {
-        _, err := Render(test.tmpl, test.context)
-        if err == nil {
-            t.Fatalf("%q expected error, got none", test.tmpl)
-        } else if strings.Index(err.String(), test.expected) == -1 {
-            t.Fatalf("%q expected %q in error %q", test.tmpl, test.expected, err.String())
+        output := Render(test.tmpl, test.context)
+        if strings.Index(output, test.expected) == -1 {
+            t.Fatalf("%q expected %q in error %q", test.tmpl, test.expected, output)
         }
     }
 }
