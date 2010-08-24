@@ -12,18 +12,18 @@ Also check out some [example mustache files](http://github.com/defunkt/mustache/
 
 There are only four methods in this package:
 
-    func Render(data string, context interface{}) (string, os.Error)
+    func Render(data string, context ...interface{}) string
     
-    func RenderFile(filename string, context interface{}) (string, os.Error)
+    func RenderFile(filename string, context ...interface{}) string
     
     func ParseString(data string) (*template, os.Error)
     
     func ParseFile(filename string) (*template, os.Error) 
 
 
-The Render method takes a string and a data source, which is generally a map or struct. There's an analagous method, RenderFile, which takes a filename as an argument and uses that for the template contents. 
+The Render method takes a string and a data source, which is generally a map or struct, and returns the output string. If the template file contains an error, the return value is a description of the error. There's a similar method, RenderFile, which takes a filename as an argument and uses that for the template contents. 
 
-    data,_ := mustache.Render("hello {{c}}", map[string]string{"c":"world"})
+    data := mustache.Render("hello {{c}}", map[string]string{"c":"world"})
     println(data)
 
 
