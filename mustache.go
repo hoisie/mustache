@@ -495,7 +495,7 @@ func Render(data string, context ...interface{}) string {
         return err.String()
     }
 
-    return tmpl.Render(context)
+    return tmpl.Render(context...)
 }
 
 func RenderFile(filename string, context ...interface{}) string {
@@ -505,5 +505,5 @@ func RenderFile(filename string, context ...interface{}) string {
         return err.String()
     }
 
-    return tmpl.Render(context)
+    return tmpl.Render(context...)
 }
