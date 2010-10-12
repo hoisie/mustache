@@ -37,6 +37,10 @@ If you're planning to render the same template multiple times, you do it efficie
 
 For more example usage, please see `mustache_test.go`
 
+## Escaping
+
+mustache.go follows the official mustache HTML escaping rules. That is, if you enclose a variable with two curly brackets, `{{var}}`, the contents are HTML-escaped. For instance, strings like `5 > 2` are converted to `5 &gt; 2`. To use raw characters, use three curly brackets `{{{var}}}`.
+ 
 ## Supported features
 
 * Variables

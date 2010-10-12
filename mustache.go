@@ -18,6 +18,7 @@ type textElement struct {
 
 type varElement struct {
     name string
+    raw bool
 }
 
 type sectionElement struct {
@@ -43,6 +44,40 @@ type parseError struct {
 }
 
 func (p parseError) String() string { return fmt.Sprintf("line %d: %s", p.line, p.message) }
+
+var (
+    esc_quot = []byte("&quot;")
+    esc_apos = []byte("&apos;")
+    esc_amp  = []byte("&amp;")
+    esc_lt   = []byte("&lt;")
+    esc_gt   = []byte("&gt;")
+)
+
+// taken from pkg/template
+func htmlEscape(w io.Writer, s []byte) {
+    var esc []byte
+    last := 0
+    for i, c := range s {
+        switch c {
+        case '"':
+            esc = esc_quot
+        case '\'':
+            esc = esc_apos
+        case '&':
+            esc = esc_amp
+        case '<':
+            esc = esc_lt
+        case '>':
+            esc = esc_gt
+        default:
+            continue
+        }
+        w.Write(s[last:i])
+        w.Write(esc)
+        last = i + 1
+    }
+    w.Write(s[last:])
+}
 
 func (tmpl *Template) readString(s string) (string, os.Error) {
     i := tmpl.p
@@ -128,8 +163,12 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
         // put text into an item
         text = text[0 : len(text)-len(tmpl.otag)]
         section.elems.Push(&textElement{[]byte(text)})
-
-        text, err = tmpl.readString(tmpl.ctag)
+        if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
+            text, err = tmpl.readString("}" + tmpl.ctag)
+        } else {
+            text, err = tmpl.readString(tmpl.ctag)
+        }
+        
         if err == os.EOF {
             //put the remaining text in a block
             return parseError{tmpl.curline, "unmatched open tag"}
@@ -137,6 +176,7 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
 
         //trim the close tag off the text
         tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
+        
         if len(tag) == 0 {
             return parseError{tmpl.curline, "empty tag"}
         }
@@ -184,8 +224,13 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
                 tmpl.otag = newtags[0]
                 tmpl.ctag = newtags[1]
             }
+        case '{':
+            if tag[len(tag) -1] == '}' {
+                //use a raw tag
+                section.elems.Push(&varElement{tag[1:len(tag)-1], true})
+            }
         default:
-            section.elems.Push(&varElement{tag})
+            section.elems.Push(&varElement{tag, false})
         }
     }
 
@@ -205,8 +250,13 @@ func (tmpl *Template) parse() os.Error {
         // put text into an item
         text = text[0 : len(text)-len(tmpl.otag)]
         tmpl.elems.Push(&textElement{[]byte(text)})
-
-        text, err = tmpl.readString(tmpl.ctag)
+        
+        if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
+            text, err = tmpl.readString("}" + tmpl.ctag)
+        } else {
+            text, err = tmpl.readString(tmpl.ctag)
+        }
+        
         if err == os.EOF {
             //put the remaining text in a block
             return parseError{tmpl.curline, "unmatched open tag"}
@@ -255,8 +305,13 @@ func (tmpl *Template) parse() os.Error {
                 tmpl.otag = newtags[0]
                 tmpl.ctag = newtags[1]
             }
+        case '{':
+            //use a raw tag
+            if  tag[len(tag) -1] == '}' {
+                tmpl.elems.Push(&varElement{tag[1:len(tag)-1], true})
+            }
         default:
-            tmpl.elems.Push(&varElement{tag})
+            tmpl.elems.Push(&varElement{tag, false})
         }
     }
 
@@ -429,7 +484,12 @@ func renderElement(element interface{}, contextChain *vector.Vector, buf io.Writ
     case *varElement:
         val := lookup(contextChain, elem.name)
         if val != nil {
-            fmt.Fprint(buf, val.Interface())
+            if elem.raw {
+                fmt.Fprint(buf, val.Interface())
+            } else {
+               s := fmt.Sprint(val.Interface())
+               htmlEscape(buf,[]byte(s))
+            }
         }
     case *sectionElement:
         renderSection(elem, contextChain, buf)

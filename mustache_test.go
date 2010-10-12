@@ -74,6 +74,8 @@ func makeVector(n int) *vector.Vector {
 var tests = []Test{
     Test{`hello world`, nil, "hello world"},
     Test{`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
+    Test{`{{var}}`, map[string]string { "var": "5 > 2" }, "5 &gt; 2"},
+    Test{`{{{var}}}`, map[string]string { "var": "5 > 2" }, "5 > 2"},
     Test{`{{a}}{{b}}{{c}}{{d}}`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "abcd"},
     Test{`0{{a}}1{{b}}23{{c}}456{{d}}89`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "0a1b23c456d89"},
     Test{`hello {{! comment }}world`, map[string]string{}, "hello world"},
@@ -88,6 +90,8 @@ var tests = []Test{
 
     //section tests
     Test{`{{#a}}{{b}}{{/a}}`, Data{true, "hello"}, "hello"},
+    Test{`{{#a}}{{{b}}}{{/a}}`, Data{true, "5 > 2"}, "5 > 2"},
+    Test{`{{#a}}{{b}}{{/a}}`, Data{true, "5 > 2"}, "5 &gt; 2"},
     Test{`{{#a}}{{b}}{{/a}}`, Data{false, "hello"}, ""},
     Test{`{{a}}{{#b}}{{b}}{{/b}}{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
     Test{`{{#a}}{{b}}{{/a}}`, struct {
