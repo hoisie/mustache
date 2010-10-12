@@ -324,10 +324,7 @@ Outer:
                 for i := 0; i < n; i++ {
                     m := typ.Method(i)
                     mtyp := m.Type
-                    // We must check receiver type because of a bug in the reflection type tables:
-                    // it should not be possible to find a method with the wrong receiver type but
-                    // this can happen due to value/pointer receiver mismatch.
-                    if m.Name == name && mtyp.NumIn() == 1 && mtyp.In(0) == typ {
+                    if m.Name == name && mtyp.NumIn() == 1 {
                         return v.Method(i).Call(nil)[0]
                     }
                 }
