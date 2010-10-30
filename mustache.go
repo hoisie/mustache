@@ -18,7 +18,7 @@ type textElement struct {
 
 type varElement struct {
     name string
-    raw bool
+    raw  bool
 }
 
 type sectionElement struct {
@@ -168,7 +168,7 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
         } else {
             text, err = tmpl.readString(tmpl.ctag)
         }
-        
+
         if err == os.EOF {
             //put the remaining text in a block
             return parseError{tmpl.curline, "unmatched open tag"}
@@ -176,7 +176,7 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
 
         //trim the close tag off the text
         tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
-        
+
         if len(tag) == 0 {
             return parseError{tmpl.curline, "empty tag"}
         }
@@ -225,9 +225,9 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
                 tmpl.ctag = newtags[1]
             }
         case '{':
-            if tag[len(tag) -1] == '}' {
+            if tag[len(tag)-1] == '}' {
                 //use a raw tag
-                section.elems.Push(&varElement{tag[1:len(tag)-1], true})
+                section.elems.Push(&varElement{tag[1 : len(tag)-1], true})
             }
         default:
             section.elems.Push(&varElement{tag, false})
@@ -250,13 +250,13 @@ func (tmpl *Template) parse() os.Error {
         // put text into an item
         text = text[0 : len(text)-len(tmpl.otag)]
         tmpl.elems.Push(&textElement{[]byte(text)})
-        
+
         if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
             text, err = tmpl.readString("}" + tmpl.ctag)
         } else {
             text, err = tmpl.readString(tmpl.ctag)
         }
-        
+
         if err == os.EOF {
             //put the remaining text in a block
             return parseError{tmpl.curline, "unmatched open tag"}
@@ -307,8 +307,8 @@ func (tmpl *Template) parse() os.Error {
             }
         case '{':
             //use a raw tag
-            if  tag[len(tag) -1] == '}' {
-                tmpl.elems.Push(&varElement{tag[1:len(tag)-1], true})
+            if tag[len(tag)-1] == '}' {
+                tmpl.elems.Push(&varElement{tag[1 : len(tag)-1], true})
             }
         default:
             tmpl.elems.Push(&varElement{tag, false})
@@ -487,8 +487,8 @@ func renderElement(element interface{}, contextChain *vector.Vector, buf io.Writ
             if elem.raw {
                 fmt.Fprint(buf, val.Interface())
             } else {
-               s := fmt.Sprint(val.Interface())
-               htmlEscape(buf,[]byte(s))
+                s := fmt.Sprint(val.Interface())
+                htmlEscape(buf, []byte(s))
             }
         }
     case *sectionElement:

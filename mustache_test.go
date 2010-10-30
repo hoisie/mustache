@@ -72,77 +72,77 @@ func makeVector(n int) *vector.Vector {
 }
 
 var tests = []Test{
-    Test{`hello world`, nil, "hello world"},
-    Test{`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
-    Test{`{{var}}`, map[string]string { "var": "5 > 2" }, "5 &gt; 2"},
-    Test{`{{{var}}}`, map[string]string { "var": "5 > 2" }, "5 > 2"},
-    Test{`{{a}}{{b}}{{c}}{{d}}`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "abcd"},
-    Test{`0{{a}}1{{b}}23{{c}}456{{d}}89`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "0a1b23c456d89"},
-    Test{`hello {{! comment }}world`, map[string]string{}, "hello world"},
-    Test{`{{ a }}{{=<% %>=}}<%b %><%={{ }}=%>{{ c }}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
-    Test{`{{ a }}{{= <% %> =}}<%b %><%= {{ }}=%>{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
+    {`hello world`, nil, "hello world"},
+    {`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
+    {`{{var}}`, map[string]string{"var": "5 > 2"}, "5 &gt; 2"},
+    {`{{{var}}}`, map[string]string{"var": "5 > 2"}, "5 > 2"},
+    {`{{a}}{{b}}{{c}}{{d}}`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "abcd"},
+    {`0{{a}}1{{b}}23{{c}}456{{d}}89`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "0a1b23c456d89"},
+    {`hello {{! comment }}world`, map[string]string{}, "hello world"},
+    {`{{ a }}{{=<% %>=}}<%b %><%={{ }}=%>{{ c }}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
+    {`{{ a }}{{= <% %> =}}<%b %><%= {{ }}=%>{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
 
     //does not exist
-    Test{`{{dne}}`, map[string]string{"name": "world"}, ""},
-    Test{`{{dne}}`, User{"Mike", 1}, ""},
-    Test{`{{dne}}`, &User{"Mike", 1}, ""},
-    Test{`{{#has}}{{/has}}`, &User{"Mike", 1}, ""},
+    {`{{dne}}`, map[string]string{"name": "world"}, ""},
+    {`{{dne}}`, User{"Mike", 1}, ""},
+    {`{{dne}}`, &User{"Mike", 1}, ""},
+    {`{{#has}}{{/has}}`, &User{"Mike", 1}, ""},
 
     //section tests
-    Test{`{{#a}}{{b}}{{/a}}`, Data{true, "hello"}, "hello"},
-    Test{`{{#a}}{{{b}}}{{/a}}`, Data{true, "5 > 2"}, "5 > 2"},
-    Test{`{{#a}}{{b}}{{/a}}`, Data{true, "5 > 2"}, "5 &gt; 2"},
-    Test{`{{#a}}{{b}}{{/a}}`, Data{false, "hello"}, ""},
-    Test{`{{a}}{{#b}}{{b}}{{/b}}{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
-    Test{`{{#a}}{{b}}{{/a}}`, struct {
+    {`{{#a}}{{b}}{{/a}}`, Data{true, "hello"}, "hello"},
+    {`{{#a}}{{{b}}}{{/a}}`, Data{true, "5 > 2"}, "5 > 2"},
+    {`{{#a}}{{b}}{{/a}}`, Data{true, "5 > 2"}, "5 &gt; 2"},
+    {`{{#a}}{{b}}{{/a}}`, Data{false, "hello"}, ""},
+    {`{{a}}{{#b}}{{b}}{{/b}}{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
+    {`{{#a}}{{b}}{{/a}}`, struct {
         a []struct {
             b string
         }
     }{[]struct {
         b string
-    }{struct{ b string }{"a"}, struct{ b string }{"b"}, struct{ b string }{"c"}}},
+    }{{"a"}, {"b"}, {"c"}}},
         "abc",
     },
-    Test{`{{#a}}{{b}}{{/a}}`, struct{ a []map[string]string }{[]map[string]string{map[string]string{"b": "a"}, map[string]string{"b": "b"}, map[string]string{"b": "c"}}}, "abc"},
+    {`{{#a}}{{b}}{{/a}}`, struct{ a []map[string]string }{[]map[string]string{{"b": "a"}, {"b": "b"}, {"b": "c"}}}, "abc"},
 
-    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
 
-    Test{`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": nil}, ""},
-    Test{`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": []User{}}, ""},
-    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
-    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": vector.Vector([]interface{}{&User{"Mike", 12}})}, "Mike"},
-    Test{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": makeVector(1)}, "Mike"},
-    Test{`{{Name}}`, User{"Mike", 1}, "Mike"},
-    Test{`{{Name}}`, &User{"Mike", 1}, "Mike"},
-    Test{"{{#users}}\n{{Name}}\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\nMike\n"},
-    Test{"{{#users}}\r\n{{Name}}\r\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\r\nMike\r\n"},
+    {`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": nil}, ""},
+    {`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": []User{}}, ""},
+    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": vector.Vector([]interface{}{&User{"Mike", 12}})}, "Mike"},
+    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": makeVector(1)}, "Mike"},
+    {`{{Name}}`, User{"Mike", 1}, "Mike"},
+    {`{{Name}}`, &User{"Mike", 1}, "Mike"},
+    {"{{#users}}\n{{Name}}\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\nMike\n"},
+    {"{{#users}}\r\n{{Name}}\r\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\r\nMike\r\n"},
 
     //inverted section tests
-    Test{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc"},
-    Test{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]interface{}{"a": "a", "b": false, "c": "c"}, "abc"},
-    Test{`{{^a}}b{{/a}}`, map[string]interface{}{"a": false}, "b"},
-    Test{`{{^a}}b{{/a}}`, map[string]interface{}{"a": true}, ""},
-    Test{`{{^a}}b{{/a}}`, map[string]interface{}{"a": "nonempty string"}, ""},
+    {`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc"},
+    {`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]interface{}{"a": "a", "b": false, "c": "c"}, "abc"},
+    {`{{^a}}b{{/a}}`, map[string]interface{}{"a": false}, "b"},
+    {`{{^a}}b{{/a}}`, map[string]interface{}{"a": true}, ""},
+    {`{{^a}}b{{/a}}`, map[string]interface{}{"a": "nonempty string"}, ""},
 
     //function tests
-    Test{`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []User{User{"Mike", 1}}}, "Mike"},
-    Test{`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
-    Test{`{{#users}}{{func2}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{func2}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
 
-    Test{`{{#users}}{{#func3}}{{name}}{{/func3}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
-    Test{`{{#users}}{{#func4}}{{name}}{{/func4}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, ""},
-    Test{`{{#truefunc1}}abcd{{/truefunc1}}`, User{"Mike", 1}, "abcd"},
-    Test{`{{#truefunc1}}abcd{{/truefunc1}}`, &User{"Mike", 1}, "abcd"},
-    Test{`{{#truefunc2}}abcd{{/truefunc2}}`, &User{"Mike", 1}, "abcd"},
-    Test{`{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}`, &User{"Mike", 1}, "abcd"},
-    Test{`{{#user}}{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
-    Test{`{{#user}}{{#func6}}{{#Allow}}abcd{{/Allow}}{{/func6}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
+    {`{{#users}}{{#func3}}{{name}}{{/func3}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{#func4}}{{name}}{{/func4}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, ""},
+    {`{{#truefunc1}}abcd{{/truefunc1}}`, User{"Mike", 1}, "abcd"},
+    {`{{#truefunc1}}abcd{{/truefunc1}}`, &User{"Mike", 1}, "abcd"},
+    {`{{#truefunc2}}abcd{{/truefunc2}}`, &User{"Mike", 1}, "abcd"},
+    {`{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}`, &User{"Mike", 1}, "abcd"},
+    {`{{#user}}{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
+    {`{{#user}}{{#func6}}{{#Allow}}abcd{{/Allow}}{{/func6}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
 
     //context chaining
-    Test{`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"section": map[string]string{"name": "world"}}, "hello world"},
-    Test{`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"name": "bob", "section": map[string]string{"name": "world"}}, "hello world"},
-    Test{`hello {{#bool}}{{#section}}{{name}}{{/section}}{{/bool}}`, map[string]interface{}{"bool": true, "section": map[string]string{"name": "world"}}, "hello world"},
-    Test{`{{#users}}{{canvas}}{{/users}}`, map[string]interface{}{"canvas": "hello", "users": []User{User{"Mike", 1}}}, "hello"},
+    {`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"section": map[string]string{"name": "world"}}, "hello world"},
+    {`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"name": "bob", "section": map[string]string{"name": "world"}}, "hello world"},
+    {`hello {{#bool}}{{#section}}{{name}}{{/section}}{{/bool}}`, map[string]interface{}{"bool": true, "section": map[string]string{"name": "world"}}, "hello world"},
+    {`{{#users}}{{canvas}}{{/users}}`, map[string]interface{}{"canvas": "hello", "users": []User{{"Mike", 1}}}, "hello"},
 }
 
 func TestBasic(t *testing.T) {
@@ -174,7 +174,7 @@ func TestPartial(t *testing.T) {
 func TestSectionPartial(t *testing.T) {
     filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test3.mustache")
     expected := "Mike\nJoe\n"
-    context := map[string]interface{}{"users": []User{User{"Mike", 1}, User{"Joe", 2}}}
+    context := map[string]interface{}{"users": []User{{"Mike", 1}, {"Joe", 2}}}
     output := RenderFile(filename, context)
     if output != expected {
         t.Fatalf("testSectionPartial expected %q got %q", expected, output)
@@ -191,10 +191,10 @@ func TestMultiContext(t *testing.T) {
 
 
 var malformed = []Test{
-    Test{`{{#a}}{{}}{{/a}}`, Data{true, "hello"}, "empty tag"},
-    Test{`{{}}`, nil, "empty tag"},
-    Test{`{{}`, nil, "unmatched open tag"},
-    Test{`{{`, nil, "unmatched open tag"},
+    {`{{#a}}{{}}{{/a}}`, Data{true, "hello"}, "empty tag"},
+    {`{{}}`, nil, "empty tag"},
+    {`{{}`, nil, "unmatched open tag"},
+    {`{{`, nil, "unmatched open tag"},
 }
 
 func TestMalformed(t *testing.T) {

@@ -7,6 +7,6 @@ GOFILES=\
 include $(GOROOT)/src/Make.pkg
 
 format:
-	gofmt -spaces=true -tabindent=false -tabwidth=4 -w mustache.go
-	gofmt -spaces=true -tabindent=false -tabwidth=4 -w mustache_test.go
+	gofmt -s -spaces=true -tabindent=false -tabwidth=4 -w mustache.go
+	gofmt -s -spaces=true -tabindent=false -tabwidth=4 -w mustache_test.go
 
