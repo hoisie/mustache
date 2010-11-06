@@ -417,6 +417,9 @@ func isNil(v reflect.Value) bool {
     }
 
     valueInd := indirect(v)
+    if valueInd == nil {
+        return true
+    }
     switch val := valueInd.(type) {
     case *reflect.BoolValue:
         return !val.Get()
