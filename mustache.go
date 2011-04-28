@@ -397,7 +397,7 @@ Outer:
 					continue Outer
 				}
 			case reflect.Map:
-				ret := av.MapIndex(reflect.NewValue(name))
+				ret := av.MapIndex(reflect.ValueOf(name))
 				if ret.IsValid() {
 					return ret
 				} else {
@@ -511,7 +511,7 @@ func (tmpl *Template) Render(context ...interface{}) string {
 	var buf bytes.Buffer
 	var contextChain vector.Vector
 	for _, c := range context {
-		val := reflect.NewValue(c)
+		val := reflect.ValueOf(c)
 		contextChain.Push(val)
 	}
 	tmpl.renderTemplate(&contextChain, &buf)
