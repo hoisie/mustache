@@ -108,7 +108,9 @@ var tests = []Test{
     {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
 
     {`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": nil}, ""},
+    {`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": (*User)(nil)}, ""},
     {`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": []User{}}, ""},
+
     {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
     {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": vector.Vector([]interface{}{&User{"Mike", 12}})}, "Mike"},
     {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": makeVector(1)}, "Mike"},
