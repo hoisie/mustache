@@ -28,38 +28,38 @@ type settings struct {
     Allow bool
 }
 
-func (u User) func1() string {
+func (u User) Func1() string {
     return u.Name
 }
 
-func (u *User) func2() string {
+func (u *User) Func2() string {
     return u.Name
 }
 
-func (u *User) func3() (map[string]string, os.Error) {
+func (u *User) Func3() (map[string]string, os.Error) {
     return map[string]string{"name": u.Name}, nil
 }
 
-func (u *User) func4() (map[string]string, os.Error) {
+func (u *User) Func4() (map[string]string, os.Error) {
     return nil, nil
 }
 
-func (u *User) func5() (*settings, os.Error) {
+func (u *User) Func5() (*settings, os.Error) {
     return &settings{true}, nil
 }
 
 
-func (u *User) func6() (*vector.Vector, os.Error) {
+func (u *User) Func6() (*vector.Vector, os.Error) {
     var v vector.Vector
     v.Push(&settings{true})
     return &v, nil
 }
 
-func (u User) truefunc1() bool {
+func (u User) Truefunc1() bool {
     return true
 }
 
-func (u *User) truefunc2() bool {
+func (u *User) Truefunc2() bool {
     return true
 }
 
@@ -125,18 +125,18 @@ var tests = []Test{
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": "nonempty string"}, ""},
 
     //function tests
-    {`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
-    {`{{#users}}{{func1}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
-    {`{{#users}}{{func2}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{Func1}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{Func1}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{Func2}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
 
-    {`{{#users}}{{#func3}}{{name}}{{/func3}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
-    {`{{#users}}{{#func4}}{{name}}{{/func4}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, ""},
-    {`{{#truefunc1}}abcd{{/truefunc1}}`, User{"Mike", 1}, "abcd"},
-    {`{{#truefunc1}}abcd{{/truefunc1}}`, &User{"Mike", 1}, "abcd"},
-    {`{{#truefunc2}}abcd{{/truefunc2}}`, &User{"Mike", 1}, "abcd"},
-    {`{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}`, &User{"Mike", 1}, "abcd"},
-    {`{{#user}}{{#func5}}{{#Allow}}abcd{{/Allow}}{{/func5}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
-    {`{{#user}}{{#func6}}{{#Allow}}abcd{{/Allow}}{{/func6}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
+    {`{{#users}}{{#Func3}}{{name}}{{/Func3}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
+    {`{{#users}}{{#Func4}}{{name}}{{/Func4}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, ""},
+    {`{{#Truefunc1}}abcd{{/Truefunc1}}`, User{"Mike", 1}, "abcd"},
+    {`{{#Truefunc1}}abcd{{/Truefunc1}}`, &User{"Mike", 1}, "abcd"},
+    {`{{#Truefunc2}}abcd{{/Truefunc2}}`, &User{"Mike", 1}, "abcd"},
+    {`{{#Func5}}{{#Allow}}abcd{{/Allow}}{{/Func5}}`, &User{"Mike", 1}, "abcd"},
+    {`{{#user}}{{#Func5}}{{#Allow}}abcd{{/Allow}}{{/Func5}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
+    {`{{#user}}{{#Func6}}{{#Allow}}abcd{{/Allow}}{{/Func6}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
 
     //context chaining
     {`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"section": map[string]string{"name": "world"}}, "hello world"},

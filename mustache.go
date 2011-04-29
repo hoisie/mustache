@@ -132,7 +132,7 @@ func (tmpl *Template) parsePartial(name string) (*Template, os.Error) {
     }
     var filename string
     for _, name := range filenames {
-        f, err := os.Open(name, os.O_RDONLY, 0666)
+        f, err := os.Open(name)
         f.Close()
         if err == nil {
             filename = name
@@ -343,7 +343,7 @@ func callMethod(data reflect.Value, name string) (result reflect.Value, found bo
                 }
             }
         }
-        if nd, ok := data.(*reflect.PtrValue); ok {
+        if nd := data; nd.Kind() == reflect.Ptr {
             data = nd.Elem()
         } else {
             break
@@ -357,11 +357,11 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
     funcType := method.Type
     // Method must take no arguments, meaning as a func it has one argument (the receiver)
     if funcType.NumIn() != 1 {
-        return nil
+        return reflect.Value{}
     }
     // Method must return a single value.
     if funcType.NumOut() == 0 {
-        return nil
+        return reflect.Value{}
     }
     // Result will be the zeroth element of the returned slice.
     return method.Func.Call([]reflect.Value{v})[0]
@@ -373,7 +373,7 @@ func lookup(contextChain *vector.Vector, name string) reflect.Value {
 Outer:
     for i := contextChain.Len() - 1; i >= 0; i-- {
         v := contextChain.At(i).(reflect.Value)
-        for v != nil {
+        for v.IsValid() {
             typ := v.Type()
             if n := v.Type().NumMethod(); n > 0 {
                 for i := 0; i < n; i++ {
@@ -384,21 +384,21 @@ Outer:
                     }
                 }
             }
-            switch av := v.(type) {
-            case *reflect.PtrValue:
+            switch av := v; av.Kind() {
+            case reflect.Ptr:
                 v = av.Elem()
-            case *reflect.InterfaceValue:
+            case reflect.Interface:
                 v = av.Elem()
-            case *reflect.StructValue:
+            case reflect.Struct:
                 ret := av.FieldByName(name)
-                if ret != nil {
+                if ret.IsValid() {
                     return ret
                 } else {
                     continue Outer
                 }
-            case *reflect.MapValue:
-                ret := av.Elem(reflect.NewValue(name))
-                if ret != nil {
+            case reflect.Map:
+                ret := av.MapIndex(reflect.ValueOf(name))
+                if ret.IsValid() {
                     return ret
                 } else {
                     continue Outer
@@ -408,18 +408,18 @@ Outer:
             }
         }
     }
-    return nil
+    return reflect.Value{}
 }
 
 func isNil(v reflect.Value) bool {
-    if v == nil || v.Interface() == nil {
+    if !v.IsValid() || v.Interface() == nil {
         return true
     }
 
     valueInd := indirect(v)
-    switch val := valueInd.(type) {
-    case *reflect.BoolValue:
-        return !val.Get()
+    switch val := valueInd; val.Kind() {
+    case reflect.Bool:
+        return !val.Bool()
     }
 
     return false
@@ -427,11 +427,11 @@ func isNil(v reflect.Value) bool {
 
 func indirect(v reflect.Value) reflect.Value {
 loop:
-    for v != nil {
-        switch av := v.(type) {
-        case *reflect.PtrValue:
+    for v.IsValid() {
+        switch av := v; av.Kind() {
+        case reflect.Ptr:
             v = av.Elem()
-        case *reflect.InterfaceValue:
+        case reflect.Interface:
             v = av.Elem()
         default:
             break loop
@@ -450,16 +450,16 @@ func renderSection(section *sectionElement, contextChain *vector.Vector, buf io.
         return
     } else {
         valueInd := indirect(value)
-        switch val := valueInd.(type) {
-        case *reflect.SliceValue:
+        switch val := valueInd; val.Kind() {
+        case reflect.Slice:
             for i := 0; i < val.Len(); i++ {
-                contexts.Push(val.Elem(i))
+                contexts.Push(val.Index(i))
             }
-        case *reflect.ArrayValue:
+        case reflect.Array:
             for i := 0; i < val.Len(); i++ {
-                contexts.Push(val.Elem(i))
+                contexts.Push(val.Index(i))
             }
-        case *reflect.MapValue, *reflect.StructValue:
+        case reflect.Map, reflect.Struct:
             contexts.Push(value)
         default:
             contexts.Push(context)
@@ -483,7 +483,7 @@ func renderElement(element interface{}, contextChain *vector.Vector, buf io.Writ
         buf.Write(elem.text)
     case *varElement:
         val := lookup(contextChain, elem.name)
-        if val != nil {
+        if val.IsValid() {
             if elem.raw {
                 fmt.Fprint(buf, val.Interface())
             } else {
@@ -508,7 +508,7 @@ func (tmpl *Template) Render(context ...interface{}) string {
     var buf bytes.Buffer
     var contextChain vector.Vector
     for _, c := range context {
-        val := reflect.NewValue(c)
+        val := reflect.ValueOf(c)
         contextChain.Push(val)
     }
     tmpl.renderTemplate(&contextChain, &buf)
