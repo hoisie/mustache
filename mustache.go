@@ -219,7 +219,7 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
                 return parseError{tmpl.curline, "Invalid meta tag"}
             }
             tag = strings.TrimSpace(tag[1 : len(tag)-1])
-            newtags := strings.Split(tag, " ", 2)
+            newtags := strings.SplitN(tag, " ", 2)
             if len(newtags) == 2 {
                 tmpl.otag = newtags[0]
                 tmpl.ctag = newtags[1]
@@ -300,7 +300,7 @@ func (tmpl *Template) parse() os.Error {
                 return parseError{tmpl.curline, "Invalid meta tag"}
             }
             tag = strings.TrimSpace(tag[1 : len(tag)-1])
-            newtags := strings.Split(tag, " ", 2)
+            newtags := strings.SplitN(tag, " ", 2)
             if len(newtags) == 2 {
                 tmpl.otag = newtags[0]
                 tmpl.ctag = newtags[1]
