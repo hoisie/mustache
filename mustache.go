@@ -369,13 +369,13 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
 
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
-func lookup(contextChain *vector.Vector, name string) (reflect.Value) {
+func lookup(contextChain *vector.Vector, name string) reflect.Value {
     defer func() {
         if r := recover(); r != nil {
-            fmt.Printf("Panic while looking up %s - %s", name, r)
+            fmt.Printf("Panic while looking up %q: %s\n", name, r)
         }
     }()
-    
+
 Outer:
     for i := contextChain.Len() - 1; i >= 0; i-- {
         v := contextChain.At(i).(reflect.Value)
@@ -491,6 +491,12 @@ func renderElement(element interface{}, contextChain *vector.Vector, buf io.Writ
     case *textElement:
         buf.Write(elem.text)
     case *varElement:
+        defer func() {
+            if r := recover(); r != nil {
+                fmt.Printf("Panic while looking up %q: %s\n", elem.name, r)
+            }
+        }()
+
         val := lookup(contextChain, elem.name)
         if val.IsValid() {
             if elem.raw {

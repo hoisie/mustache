@@ -15,8 +15,8 @@ type Test struct {
 }
 
 type Data struct {
-    a   bool
-    b   string
+    A   bool
+    B   string
 }
 
 type User struct {
@@ -48,7 +48,6 @@ func (u *User) Func5() (*settings, os.Error) {
     return &settings{true}, nil
 }
 
-
 func (u *User) Func6() (*vector.Vector, os.Error) {
     var v vector.Vector
     v.Push(&settings{true})
@@ -72,6 +71,7 @@ func makeVector(n int) *vector.Vector {
 }
 
 var tests = []Test{
+
     {`hello world`, nil, "hello world"},
     {`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
     {`{{var}}`, map[string]string{"var": "5 > 2"}, "5 &gt; 2"},
@@ -89,21 +89,21 @@ var tests = []Test{
     {`{{#has}}{{/has}}`, &User{"Mike", 1}, ""},
 
     //section tests
-    {`{{#a}}{{b}}{{/a}}`, Data{true, "hello"}, "hello"},
-    {`{{#a}}{{{b}}}{{/a}}`, Data{true, "5 > 2"}, "5 > 2"},
-    {`{{#a}}{{b}}{{/a}}`, Data{true, "5 > 2"}, "5 &gt; 2"},
-    {`{{#a}}{{b}}{{/a}}`, Data{false, "hello"}, ""},
+    {`{{#A}}{{B}}{{/A}}`, Data{true, "hello"}, "hello"},
+    {`{{#A}}{{{B}}}{{/A}}`, Data{true, "5 > 2"}, "5 > 2"},
+    {`{{#A}}{{B}}{{/A}}`, Data{true, "5 > 2"}, "5 &gt; 2"},
+    {`{{#A}}{{B}}{{/A}}`, Data{false, "hello"}, ""},
     {`{{a}}{{#b}}{{b}}{{/b}}{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
-    {`{{#a}}{{b}}{{/a}}`, struct {
-        a []struct {
-            b string
+    {`{{#A}}{{B}}{{/A}}`, struct {
+        A []struct {
+            B string
         }
     }{[]struct {
-        b string
+        B string
     }{{"a"}, {"b"}, {"c"}}},
         "abc",
     },
-    {`{{#a}}{{b}}{{/a}}`, struct{ a []map[string]string }{[]map[string]string{{"b": "a"}, {"b": "b"}, {"b": "c"}}}, "abc"},
+    {`{{#A}}{{b}}{{/A}}`, struct{ A []map[string]string }{[]map[string]string{{"b": "a"}, {"b": "b"}, {"b": "c"}}}, "abc"},
 
     {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
 
@@ -184,13 +184,12 @@ func TestSectionPartial(t *testing.T) {
 }
 
 func TestMultiContext(t *testing.T) {
-    output := Render(`{{hello}} {{world}}`, map[string]string{"hello": "hello"}, struct{ world string }{"world"})
-    output2 := Render(`{{hello}} {{world}}`, struct{ world string }{"world"}, map[string]string{"hello": "hello"})
+    output := Render(`{{hello}} {{World}}`, map[string]string{"hello": "hello"}, struct{ World string }{"world"})
+    output2 := Render(`{{hello}} {{World}}`, struct{ World string }{"world"}, map[string]string{"hello": "hello"})
     if output != "hello world" || output2 != "hello world" {
         t.Fatalf("TestMultiContext expected %q got %q", "hello world", output)
     }
 }
-
 
 var malformed = []Test{
     {`{{#a}}{{}}{{/a}}`, Data{true, "hello"}, "empty tag"},
