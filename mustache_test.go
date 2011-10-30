@@ -175,12 +175,79 @@ func TestPartial(t *testing.T) {
 }
 func TestSectionPartial(t *testing.T) {
     filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test3.mustache")
-    expected := "Mike\nJoe\n"
+    tmpl := NewTemplate()
+
+	part, err := ParseString("{{Name}}: {{Id}}")
+	if err != nil {
+		t.Fatalf("Error parsing string: %v\n", err)
+	}
+	err = tmpl.SetPartial("codepart", part)
+	if err != nil {
+		t.Fatalf("Error setting partial: %v\n", err)
+	}
+
+	err = tmpl.ParseFile(filename)
+	if err != nil {
+		t.Fatalf("Error parsing %v: %v\n", filename, err)
+	}
+
+    expected := "Mike: 1\nJoe: 2\n"
     context := map[string]interface{}{"users": []User{{"Mike", 1}, {"Joe", 2}}}
-    output := RenderFile(filename, context)
+	output := tmpl.Render(context)
     if output != expected {
         t.Fatalf("testSectionPartial expected %q got %q", expected, output)
     }
+}
+
+func TestRecursivePartial(t *testing.T) {
+	type nodeData map[string]interface{}
+	type node []nodeData
+
+	nodes := node{nodeData{
+		"contents": "1",
+		"children": node{nodeData{
+			"contents": "2",
+			"children": node{nodeData{
+				"contents": "3",
+				"children": nil,
+				}},
+			}},
+		},
+		nodeData{"contents": "4",
+		"children": node{nodeData{
+			"contents": "5",
+			"children": node{nodeData{
+				"contents": "6",
+				"children": nil,
+			}},
+		}},
+	}}
+
+	filename := path.Join("tests", "test4.mustache")
+
+	tmpl := NewTemplate()
+	err := tmpl.SetPartial("node", tmpl)
+	if err != nil {
+		t.Fatalf("Error setting partial: %v\n", err)
+	}
+	err = tmpl.ParseFile(filename)
+	if err != nil {
+		t.Fatalf("Error parsing %v: %v\n", err)
+	}
+
+	top := NewTemplate()
+	err = top.SetPartial("node", tmpl)
+	if err != nil {
+		t.Fatalf("Error setting partial: %v\n", err)
+	}
+	top.ParseString("<ul>\n\t{{#nodes}}\n\t\t{{> node}}\n\t{{/nodes}}\n</ul>")
+	if err != nil {
+		t.Fatalf("Error parsing string: %v\n", err)
+	}
+
+	_ = top.Render(map[string]interface{}{"nodes": nodes})
+
+	t.Logf("testRecursivePartial worked, but created nasty newlines.")
 }
 
 func TestMultiContext(t *testing.T) {
