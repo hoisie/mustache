@@ -530,6 +530,15 @@ func (tmpl *Template) Render(context ...interface{}) string {
     return buf.String()
 }
 
+func (tmpl *Template) RenderWriter(w io.Writer, context ...interface{}) {
+    var contextChain vector.Vector
+    for _, c := range context {
+        val := reflect.ValueOf(c)
+        contextChain.Push(val)
+    }
+    tmpl.renderTemplate(&contextChain, w)
+}
+
 func ParseString(data string) (*Template, os.Error) {
     cwd := os.Getenv("CWD")
     tmpl := Template{data, "{{", "}}", 0, 1, cwd, new(vector.Vector)}
@@ -569,6 +578,19 @@ func Render(data string, context ...interface{}) string {
 
     return tmpl.Render(context...)
 }
+
+func RenderWriter(w io.Writer, data string, context ...interface{}) os.Error {
+    tmpl, err := ParseString(data)
+
+    if err != nil {
+        return err
+    }
+
+    tmpl.RenderWriter(w, context...)
+	return nil
+}
+
+
 
 func RenderFile(filename string, context ...interface{}) string {
     tmpl, err := ParseFile(filename)

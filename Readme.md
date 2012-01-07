@@ -10,10 +10,12 @@ Also check out some [example mustache files](http://github.com/defunkt/mustache/
 
 ## Usage
 
-There are only four methods in this package:
+There are only five methods in this package:
 
     func Render(data string, context ...interface{}) string
     
+	func RenderWriter(w io.Writer, context ...interface{})
+
     func RenderFile(filename string, context ...interface{}) string
     
     func ParseString(data string) (*template, os.Error)
@@ -29,11 +31,23 @@ The Render method takes a string and a data source, which is generally a map or 
 
 If you're planning to render the same template multiple times, you do it efficiently by compiling the template first:
 
-    tmpl,_ := mustache.Parse("hello {{c}}")
+    tmpl,_ := mustache.ParseString("hello {{c}}")
     var buf bytes.Buffer;
     for i := 0; i < 10; i++ {
         tmpl.Render (map[string]string { "c":"world"}, &buf)  
     }
+
+
+The RenderWriter method takes an io.Writer and a context.  The template is rendered immediately to the io.Writer.
+
+    func Handler(rw http.ResponseWriter, req *http.Request) {
+        tmpl,_ := mustache.ParseString("hello {{c}}")
+    
+        ctx := map[string]string{ "c": "world" }    
+        tmpl.RenderWriter(rw, ctx)
+    }
+
+
 
 For more example usage, please see `mustache_test.go`
 
