@@ -6,6 +6,7 @@ import (
     "path"
     "strings"
     "testing"
+	"bytes"
 )
 
 type Test struct {
@@ -150,6 +151,18 @@ var tests = []Test{
 func TestBasic(t *testing.T) {
     for _, test := range tests {
         output := Render(test.tmpl, test.context)
+        if output != test.expected {
+            t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
+        }
+    }
+}
+
+func TestWriter(t *testing.T) {
+	var buf bytes.Buffer
+    for _, test := range tests {
+		buf.Reset()
+        RenderWriter(&buf, test.tmpl, test.context)
+		output := buf.String()
         if output != test.expected {
             t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
         }
