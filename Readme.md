@@ -32,7 +32,7 @@ The Render method takes a string and a data source, which is generally a map or 
 
 If you're planning to render the same template multiple times, you do it efficiently by compiling the template first:
 
-    tmpl,_ := mustache.Parse("hello {{c}}")
+    tmpl,_ := mustache.ParseString("hello {{c}}")
     var buf bytes.Buffer;
     for i := 0; i < 10; i++ {
         tmpl.Render (map[string]string { "c":"world"}, &buf)  
@@ -67,7 +67,7 @@ template.html.mustache:
 
     <h1> Hello World! </h1>
 
-A call to `RenderFileInLayout("template.html.mustache", "layout.html.mustache", nil) will produce:
+A call to `RenderFileInLayout("template.html.mustache", "layout.html.mustache", nil)` will produce:
 
     <html>
     <head><title>Hi</title></head>
