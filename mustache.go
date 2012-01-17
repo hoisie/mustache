@@ -600,5 +600,5 @@ func RenderFileInLayout(filename string, layoutFile string, context ...interface
     if err != nil {
         return err.String()
     }
-    return tmpl.Render(context...)
+    return tmpl.RenderInLayout(layoutTmpl, context...)
 }

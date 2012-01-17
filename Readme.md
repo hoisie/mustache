@@ -12,7 +12,7 @@ Also check out some [example mustache files](http://github.com/defunkt/mustache/
 To install mustache.go, simply run `goinstall github.com/hoisie/mustache.go`. To use it in a program, use `import "github.com/hoisie/mustache.go"`
 
 ## Usage
-There are only four methods in this package:
+There are four main methods in this package:
 
     func Render(data string, context ...interface{}) string
     
@@ -22,6 +22,7 @@ There are only four methods in this package:
     
     func ParseFile(filename string) (*template, os.Error) 
 
+There are also two additional methods for using layouts (explained below).
 
 The Render method takes a string and a data source, which is generally a map or struct, and returns the output string. If the template file contains an error, the return value is a description of the error. There's a similar method, RenderFile, which takes a filename as an argument and uses that for the template contents. 
 
@@ -42,7 +43,39 @@ For more example usage, please see `mustache_test.go`
 ## Escaping
 
 mustache.go follows the official mustache HTML escaping rules. That is, if you enclose a variable with two curly brackets, `{{var}}`, the contents are HTML-escaped. For instance, strings like `5 > 2` are converted to `5 &gt; 2`. To use raw characters, use three curly brackets `{{{var}}}`.
- 
+
+## Layouts
+
+It is a common pattern to include a template file as a "wrapper" for other templates. The wrapper may include a header and a footer, for instance. Mustache.go supports this pattern with the following two methods:
+
+    func RenderInLayout(data string, layout string, context ...interface{}) string
+    
+    func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) string
+    
+The layout file must have a variable called `{{content}}`. For example, given the following files:
+
+layout.html.mustache:
+
+    <html>
+    <head><title>Hi</title></head>
+    <body>
+    {{{content}}}
+    </body>
+    </html>
+
+template.html.mustache:
+
+    <h1> Hello World! </h1>
+
+A call to `RenderFileInLayout("template.html.mustache", "layout.html.mustache", nil) will produce:
+
+    <html>
+    <head><title>Hi</title></head>
+    <body>
+    <h1> Hello World! </h1>
+    </body>
+    </html>
+
 ## Supported features
 
 * Variables
