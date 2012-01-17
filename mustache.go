@@ -479,7 +479,6 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
         for _, elem := range section.elems {
             renderElement(elem, contextChain, buf)
         }
-        //either 1 or 2
         contextChain = contextChain[0 : len(contextChain)-1]
     }
 }
@@ -528,6 +527,11 @@ func (tmpl *Template) Render(context ...interface{}) string {
     return buf.String()
 }
 
+func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) string {
+    content := tmpl.Render(context...)
+    return layout.Render(map[string]string{"content":content})
+}
+
 func ParseString(data string) (*Template, os.Error) {
     cwd := os.Getenv("CWD")
     tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}}
@@ -566,12 +570,35 @@ func Render(data string, context ...interface{}) string {
     return tmpl.Render(context...)
 }
 
+func RenderInLayout(data string, layoutData string, context ...interface{}) string {
+    layoutTmpl,err  := ParseString(layoutData)
+    if err != nil {
+        return err.String()
+    }
+    tmpl, err := ParseString(data)
+    if err != nil {
+        return err.String()
+    }
+    return tmpl.RenderInLayout(layoutTmpl, context...)
+}
+
 func RenderFile(filename string, context ...interface{}) string {
     tmpl, err := ParseFile(filename)
+    if err != nil {
+        return err.String()
+    }
+    return tmpl.Render(context...)
+}
 
+func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) string {
+    layoutTmpl,err  := ParseFile(layoutFile)
     if err != nil {
         return err.String()
     }
 
+    tmpl, err := ParseFile(filename)
+    if err != nil {
+        return err.String()
+    }
     return tmpl.Render(context...)
 }

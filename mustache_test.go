@@ -206,3 +206,26 @@ func TestMalformed(t *testing.T) {
         }
     }
 }
+
+type LayoutTest struct {
+    layout  string
+    tmpl     string
+    context  interface{}
+    expected string
+}
+
+var layoutTests = []LayoutTest{
+    {`Header {{content}} Footer`, `Hello World`, nil, `Header Hello World Footer`},
+    {`Header {{content}} Footer`, `Hello {{s}}`, map[string]string{"s":"World"}, `Header Hello World Footer`},
+    {`Header {{content}} Footer`, `Hello {{content}}`, map[string]string{"content":"World"}, `Header Hello World Footer`},
+}
+
+
+func TestLayout(t *testing.T) {
+    for _, test := range layoutTests {
+        output := RenderInLayout(test.tmpl, test.layout, test.context)
+        if output != test.expected {
+            t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
+        }
+    }
+}
