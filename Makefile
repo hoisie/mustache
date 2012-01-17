@@ -1,6 +1,7 @@
 include $(GOROOT)/src/Make.inc
 
-TARG=mustache
+TARG=github.com/hoisie/mustache.go
+
 GOFILES=\
 	mustache.go\
 
