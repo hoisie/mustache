@@ -76,6 +76,31 @@ A call to `RenderFileInLayout("template.html.mustache", "layout.html.mustache", 
     </body>
     </html>
 
+## A note about method receivers
+
+Mustache.go supports calling methods on objects, but you have to be aware of Go's limitations. For example, lets's say you have the following type:
+
+    type Person struct {
+        FirstName string
+        LastName string    
+    }
+
+    func (p *Person) Name1() string {
+        return p.FirstName + " " + p.LastName
+    }
+
+    func (p Person) Name2() string {
+        return p.FirstName + " " + p.LastName
+    }
+
+While they appear to be identical methods, `Name1` has a pointer receiver, and `Name2` has a value receiver. Objects of type `Person`(non-pointer) can only access `Name2`, while objects of type `*Person`(person) can access both. This is by design in the Go language.
+
+So if you write the following:
+
+    mustache.Render("{{Name1}}", Person{"John", "Smith"})
+
+It'll be blank. You either have to use `&Person{"John", "Smith"}`, or call `Name2`
+
 ## Supported features
 
 * Variables
