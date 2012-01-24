@@ -375,8 +375,8 @@ func lookup(contextChain []interface{}, name string) reflect.Value {
     }()
 
 Outer:
-    for i := len(contextChain) - 1; i >= 0; i-- {
-        v := contextChain[i].(reflect.Value)
+    for _, ctx := range contextChain { //i := len(contextChain) - 1; i >= 0; i-- {
+        v := ctx.(reflect.Value)
         for v.IsValid() {
             typ := v.Type()
             if n := v.Type().NumMethod(); n > 0 {
@@ -473,13 +473,14 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
         }
     }
 
+    chain2 := make([]interface{}, len(contextChain)+1)
+    copy(chain2[1:], contextChain)
     //by default we execute the section
     for _, ctx := range contexts {
-        contextChain = append(contextChain, ctx)
+        chain2[0] = ctx
         for _, elem := range section.elems {
-            renderElement(elem, contextChain, buf)
+            renderElement(elem, chain2, buf)
         }
-        contextChain = contextChain[0 : len(contextChain)-1]
     }
 }
 
@@ -493,8 +494,8 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
                 fmt.Printf("Panic while looking up %q: %s\n", elem.name, r)
             }
         }()
-
         val := lookup(contextChain, elem.name)
+
         if val.IsValid() {
             if elem.raw {
                 fmt.Fprint(buf, val.Interface())
@@ -529,7 +530,10 @@ func (tmpl *Template) Render(context ...interface{}) string {
 
 func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) string {
     content := tmpl.Render(context...)
-    return layout.Render(map[string]string{"content":content})
+    allContext := make([]interface{}, len(context)+1)
+    copy(allContext[1:], context)
+    allContext[0] = map[string]string{"content": content}
+    return layout.Render(allContext...)
 }
 
 func ParseString(data string) (*Template, os.Error) {
@@ -571,7 +575,7 @@ func Render(data string, context ...interface{}) string {
 }
 
 func RenderInLayout(data string, layoutData string, context ...interface{}) string {
-    layoutTmpl,err  := ParseString(layoutData)
+    layoutTmpl, err := ParseString(layoutData)
     if err != nil {
         return err.String()
     }
@@ -591,7 +595,7 @@ func RenderFile(filename string, context ...interface{}) string {
 }
 
 func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) string {
-    layoutTmpl,err  := ParseFile(layoutFile)
+    layoutTmpl, err := ParseFile(layoutFile)
     if err != nil {
         return err.String()
     }

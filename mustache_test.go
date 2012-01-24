@@ -70,8 +70,16 @@ func makeVector(n int) *vector.Vector {
     return v
 }
 
-var tests = []Test{
+type Category struct {
+    Tag         string
+    Description string
+}
 
+func (c Category) DisplayName() string {
+    return c.Tag + " - " + c.Description
+}
+
+var tests = []Test{
     {`hello world`, nil, "hello world"},
     {`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
     {`{{var}}`, map[string]string{"var": "5 > 2"}, "5 &gt; 2"},
@@ -145,6 +153,9 @@ var tests = []Test{
     {`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"name": "bob", "section": map[string]string{"name": "world"}}, "hello world"},
     {`hello {{#bool}}{{#section}}{{name}}{{/section}}{{/bool}}`, map[string]interface{}{"bool": true, "section": map[string]string{"name": "world"}}, "hello world"},
     {`{{#users}}{{canvas}}{{/users}}`, map[string]interface{}{"canvas": "hello", "users": []User{{"Mike", 1}}}, "hello"},
+    {`{{#categories}}{{DisplayName}}{{/categories}}`, map[string][]*Category{
+        "categories": {&Category{"a", "b"}},
+    }, "a - b"},
 }
 
 func TestBasic(t *testing.T) {
@@ -208,7 +219,7 @@ func TestMalformed(t *testing.T) {
 }
 
 type LayoutTest struct {
-    layout  string
+    layout   string
     tmpl     string
     context  interface{}
     expected string
@@ -216,10 +227,11 @@ type LayoutTest struct {
 
 var layoutTests = []LayoutTest{
     {`Header {{content}} Footer`, `Hello World`, nil, `Header Hello World Footer`},
-    {`Header {{content}} Footer`, `Hello {{s}}`, map[string]string{"s":"World"}, `Header Hello World Footer`},
-    {`Header {{content}} Footer`, `Hello {{content}}`, map[string]string{"content":"World"}, `Header Hello World Footer`},
+    {`Header {{content}} Footer`, `Hello {{s}}`, map[string]string{"s": "World"}, `Header Hello World Footer`},
+    {`Header {{content}} Footer`, `Hello {{content}}`, map[string]string{"content": "World"}, `Header Hello World Footer`},
+    {`Header {{extra}} {{content}} Footer`, `Hello {{content}}`, map[string]string{"content": "World", "extra": "extra"}, `Header extra Hello World Footer`},
+    {`Header {{content}} {{content}} Footer`, `Hello {{content}}`, map[string]string{"content": "World"}, `Header Hello World Hello World Footer`},
 }
-
 
 func TestLayout(t *testing.T) {
     for _, test := range layoutTests {
