@@ -112,7 +112,7 @@ var tests = []Test{
 	{`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": []User{}}, ""},
 
 	{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
-	//{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []interface{}{[]interface{}{&User{"Mike", 12}}}}, "Mike"},
+	// why doesn't this pass ? {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []interface{}{[]interface{}{&User{"Mike", 12}}}}, "Mike"},
 	{`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": makeVector(1)}, "Mike"},
 	{`{{Name}}`, User{"Mike", 1}, "Mike"},
 	{`{{Name}}`, &User{"Mike", 1}, "Mike"},
