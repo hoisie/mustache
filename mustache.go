@@ -2,6 +2,7 @@ package mustache
 
 import (
     "bytes"
+    "errors"
     "fmt"
     "io"
     "io/ioutil"
@@ -42,7 +43,7 @@ type parseError struct {
     message string
 }
 
-func (p parseError) String() string { return fmt.Sprintf("line %d: %s", p.line, p.message) }
+func (p parseError) Error() string { return fmt.Sprintf("line %d: %s", p.line, p.message) }
 
 var (
     esc_quot = []byte("&quot;")
@@ -78,13 +79,13 @@ func htmlEscape(w io.Writer, s []byte) {
     w.Write(s[last:])
 }
 
-func (tmpl *Template) readString(s string) (string, os.Error) {
+func (tmpl *Template) readString(s string) (string, error) {
     i := tmpl.p
     newlines := 0
     for true {
         //are we at the end of the string?
         if i+len(s) > len(tmpl.data) {
-            return tmpl.data[tmpl.p:], os.EOF
+            return tmpl.data[tmpl.p:], io.EOF
         }
 
         if tmpl.data[i] == '\n' {
@@ -120,7 +121,7 @@ func (tmpl *Template) readString(s string) (string, os.Error) {
     return "", nil
 }
 
-func (tmpl *Template) parsePartial(name string) (*Template, os.Error) {
+func (tmpl *Template) parsePartial(name string) (*Template, error) {
     filenames := []string{
         path.Join(tmpl.dir, name),
         path.Join(tmpl.dir, name+".mustache"),
@@ -132,14 +133,14 @@ func (tmpl *Template) parsePartial(name string) (*Template, os.Error) {
     var filename string
     for _, name := range filenames {
         f, err := os.Open(name)
-        f.Close()
         if err == nil {
             filename = name
+            f.Close()
             break
         }
     }
     if filename == "" {
-        return nil, os.NewError(fmt.Sprintf("Could not find partial %q", name))
+        return nil, errors.New(fmt.Sprintf("Could not find partial %q", name))
     }
 
     partial, err := ParseFile(filename)
@@ -151,11 +152,11 @@ func (tmpl *Template) parsePartial(name string) (*Template, os.Error) {
     return partial, nil
 }
 
-func (tmpl *Template) parseSection(section *sectionElement) os.Error {
+func (tmpl *Template) parseSection(section *sectionElement) error {
     for {
         text, err := tmpl.readString(tmpl.otag)
 
-        if err == os.EOF {
+        if err == io.EOF {
             return parseError{section.startline, "Section " + section.name + " has no closing tag"}
         }
 
@@ -168,7 +169,7 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
             text, err = tmpl.readString(tmpl.ctag)
         }
 
-        if err == os.EOF {
+        if err == io.EOF {
             //put the remaining text in a block
             return parseError{tmpl.curline, "unmatched open tag"}
         }
@@ -236,10 +237,10 @@ func (tmpl *Template) parseSection(section *sectionElement) os.Error {
     return nil
 }
 
-func (tmpl *Template) parse() os.Error {
+func (tmpl *Template) parse() error {
     for {
         text, err := tmpl.readString(tmpl.otag)
-        if err == os.EOF {
+        if err == io.EOF {
             //put the remaining text in a block
             tmpl.elems = append(tmpl.elems, &textElement{[]byte(text)})
             return nil
@@ -255,7 +256,7 @@ func (tmpl *Template) parse() os.Error {
             text, err = tmpl.readString(tmpl.ctag)
         }
 
-        if err == os.EOF {
+        if err == io.EOF {
             //put the remaining text in a block
             return parseError{tmpl.curline, "unmatched open tag"}
         }
@@ -536,7 +537,7 @@ func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) s
     return layout.Render(allContext...)
 }
 
-func ParseString(data string) (*Template, os.Error) {
+func ParseString(data string) (*Template, error) {
     cwd := os.Getenv("CWD")
     tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}}
     err := tmpl.parse()
@@ -548,7 +549,7 @@ func ParseString(data string) (*Template, os.Error) {
     return &tmpl, err
 }
 
-func ParseFile(filename string) (*Template, os.Error) {
+func ParseFile(filename string) (*Template, error) {
     data, err := ioutil.ReadFile(filename)
     if err != nil {
         return nil, err
@@ -569,7 +570,7 @@ func ParseFile(filename string) (*Template, os.Error) {
 func Render(data string, context ...interface{}) string {
     tmpl, err := ParseString(data)
     if err != nil {
-        return err.String()
+        return err.Error()
     }
     return tmpl.Render(context...)
 }
@@ -577,11 +578,11 @@ func Render(data string, context ...interface{}) string {
 func RenderInLayout(data string, layoutData string, context ...interface{}) string {
     layoutTmpl, err := ParseString(layoutData)
     if err != nil {
-        return err.String()
+        return err.Error()
     }
     tmpl, err := ParseString(data)
     if err != nil {
-        return err.String()
+        return err.Error()
     }
     return tmpl.RenderInLayout(layoutTmpl, context...)
 }
@@ -589,7 +590,7 @@ func RenderInLayout(data string, layoutData string, context ...interface{}) stri
 func RenderFile(filename string, context ...interface{}) string {
     tmpl, err := ParseFile(filename)
     if err != nil {
-        return err.String()
+        return err.Error()
     }
     return tmpl.Render(context...)
 }
@@ -597,12 +598,12 @@ func RenderFile(filename string, context ...interface{}) string {
 func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) string {
     layoutTmpl, err := ParseFile(layoutFile)
     if err != nil {
-        return err.String()
+        return err.Error()
     }
 
     tmpl, err := ParseFile(filename)
     if err != nil {
-        return err.String()
+        return err.Error()
     }
     return tmpl.RenderInLayout(layoutTmpl, context...)
 }
