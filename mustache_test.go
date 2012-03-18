@@ -1,7 +1,6 @@
 package mustache
 
 import (
-    "container/vector"
     "os"
     "path"
     "strings"
@@ -48,10 +47,10 @@ func (u *User) Func5() (*settings, os.Error) {
     return &settings{true}, nil
 }
 
-func (u *User) Func6() (*vector.Vector, os.Error) {
-    var v vector.Vector
-    v.Push(&settings{true})
-    return &v, nil
+func (u *User) Func6() ([]interface{}, os.Error) {
+    var v []interface{}
+    v = append(v, &settings{true})
+    return v, nil
 }
 
 func (u User) Truefunc1() bool {
@@ -62,10 +61,10 @@ func (u *User) Truefunc2() bool {
     return true
 }
 
-func makeVector(n int) *vector.Vector {
-    v := new(vector.Vector)
+func makeVector(n int) []interface{} {
+    var v []interface{}
     for i := 0; i < n; i++ {
-        v.Push(&User{"Mike", 1})
+        v = append(v, &User{"Mike", 1})
     }
     return v
 }
@@ -120,7 +119,7 @@ var tests = []Test{
     {`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": []User{}}, ""},
 
     {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{&User{"Mike", 1}}}, "Mike"},
-    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": vector.Vector([]interface{}{&User{"Mike", 12}})}, "Mike"},
+    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []interface{}{&User{"Mike", 12}}}, "Mike"},
     {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": makeVector(1)}, "Mike"},
     {`{{Name}}`, User{"Mike", 1}, "Mike"},
     {`{{Name}}`, &User{"Mike", 1}, "Mike"},
