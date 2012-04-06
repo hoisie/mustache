@@ -133,9 +133,9 @@ func (tmpl *Template) parsePartial(name string) (*Template, error) {
 	var filename string
 	for _, name := range filenames {
 		f, err := os.Open(name)
-		f.Close()
 		if err == nil {
 			filename = name
+			f.Close()
 			break
 		}
 	}
