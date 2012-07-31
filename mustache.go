@@ -428,6 +428,51 @@ func isNil(v reflect.Value) bool {
     switch val := valueInd; val.Kind() {
     case reflect.Bool:
         return !val.Bool()
+
+    case reflect.Int:
+        fallthrough
+    case reflect.Int8:
+        fallthrough
+    case reflect.Int16:
+        fallthrough
+    case reflect.Int32:
+        fallthrough
+    case reflect.Int64:
+        return val.Int() == 0
+
+    case reflect.Uint:
+        fallthrough
+    case reflect.Uintptr:
+        fallthrough
+    case reflect.Uint8:
+        fallthrough
+    case reflect.Uint16:
+        fallthrough
+    case reflect.Uint32:
+        fallthrough
+    case reflect.Uint64:
+        return val.Uint() == 0
+
+    case reflect.Float32:
+        fallthrough
+    case reflect.Float64:
+        return val.Float() == 0
+
+    case reflect.Array:
+        fallthrough
+    case reflect.Chan:
+        fallthrough
+    case reflect.Map:
+        fallthrough
+    case reflect.Slice:
+        fallthrough
+    case reflect.String:
+        return val.Len() == 0
+
+    case reflect.Complex64:
+        fallthrough
+    case reflect.Complex128:
+        return val.Complex() == complex(0, 0)
     }
 
     return false
@@ -454,9 +499,12 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
     var contexts = []interface{}{}
     // if the value is nil, check if it's an inverted section
     isNil := isNil(value)
-    if isNil && !section.inverted || !isNil && section.inverted {
-        return
-    } else {
+
+    if isNil && section.inverted {
+        val := indirect(value)
+        contexts = append(contexts, val)
+
+    } else if !isNil && !section.inverted {
         valueInd := indirect(value)
         switch val := valueInd; val.Kind() {
         case reflect.Slice:
@@ -472,6 +520,8 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
         default:
             contexts = append(contexts, context)
         }
+    } else {
+        return
     }
 
     chain2 := make([]interface{}, len(contextChain)+1)

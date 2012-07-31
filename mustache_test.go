@@ -132,6 +132,10 @@ var tests = []Test{
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": false}, "b"},
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": true}, ""},
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": "nonempty string"}, ""},
+    {`{{^a}}falseint{{/a}}`, map[string]interface{}{"a": 0}, "falseint"},
+    {`{{^a}}falsereal{{/a}}`, map[string]interface{}{"a": 0.0}, "falsereal"},
+    {`{{^a}}falselist{{/a}}`, map[string]interface{}{"a": []string{}}, "falselist"},
+    {`{{^a}}falseplist{{/a}}`, map[string]interface{}{"a": []*string{}}, "falseplist"},
 
     //function tests
     {`{{#users}}{{Func1}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
