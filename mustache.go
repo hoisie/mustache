@@ -228,6 +228,12 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
             section.elems = append(section.elems, &se)
         case '/':
             name := strings.TrimSpace(tag[1:])
+
+            //save this only to the parent's raw body.
+            if section.parentSection != nil && section.parentSection.name != name {
+                section.parentSection.rawBody += "{{/" + name + "}}"
+            }
+
             if name != section.name {
                 return parseError{tmpl.curline, "interleaved closing tag: " + name}
             } else {
