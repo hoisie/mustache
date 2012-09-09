@@ -146,6 +146,7 @@ var tests = []Test{
     {`{{#Func5}}{{#Allow}}abcd{{/Allow}}{{/Func5}}`, &User{"Mike", 1}, "abcd"},
     {`{{#user}}{{#Func5}}{{#Allow}}abcd{{/Allow}}{{/Func5}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
     {`{{#user}}{{#Func6}}{{#Allow}}abcd{{/Allow}}{{/Func6}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
+    {`{{#Lambda}}{{#Test}}abcd{{/Test}}{{/Lambda}}`, &struct{ Lambda func(in string) string }{Lambda: func(in string) string { return in }}, "{{#Test}}abcd{{/Test}}"},
 
     //context chaining
     {`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"section": map[string]string{"name": "world"}}, "hello world"},
