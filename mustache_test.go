@@ -153,6 +153,10 @@ var tests = []Test{
         Show   bool
         Lambda func(in string) string
     }{Show: true, Lambda: func(in string) string { return in }}, "efgh"},
+	{`{{#Show}}{{#Lambda}}jklm{{/Lambda}}{{/Show}}`, &struct {
+        Show   bool
+        Lambda func(in string) string
+    }{Show: false, Lambda: func(in string) string { return in }}, ""},
 
     //context chaining
     {`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"section": map[string]string{"name": "world"}}, "hello world"},
