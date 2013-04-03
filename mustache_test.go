@@ -161,6 +161,9 @@ var tests = []Test{
     {`{{#categories}}{{DisplayName}}{{/categories}}`, map[string][]*Category{
         "categories": {&Category{"a", "b"}},
     }, "a - b"},
+
+    //invalid syntax - https://github.com/hoisie/mustache/issues/10
+    {`{{#a}}{{#b}}{{/a}}{{/b}}}`, map[string]interface{}{}, "line 1: interleaved closing tag: a"},
 }
 
 func TestBasic(t *testing.T) {
