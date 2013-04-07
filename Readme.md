@@ -14,7 +14,7 @@ There are only five methods in this package:
 
     func Render(data string, context ...interface{}) string
     
-	func RenderWriter(w io.Writer, context ...interface{})
+	func RenderTo(w io.Writer, context ...interface{})
 
     func RenderFile(filename string, context ...interface{}) string
     
@@ -38,13 +38,13 @@ If you're planning to render the same template multiple times, you do it efficie
     }
 
 
-The RenderWriter method takes an io.Writer and a context.  The template is rendered immediately to the io.Writer.
+The RenderTo method takes an io.Writer and a context.  The template is rendered immediately to the io.Writer.
 
     func Handler(rw http.ResponseWriter, req *http.Request) {
         tmpl,_ := mustache.ParseString("hello {{c}}")
     
         ctx := map[string]string{ "c": "world" }    
-        tmpl.RenderWriter(rw, ctx)
+        tmpl.RenderTo(rw, ctx)
     }
 
 
