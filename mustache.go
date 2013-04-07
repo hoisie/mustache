@@ -532,7 +532,7 @@ func (tmpl *Template) Render(context ...interface{}) string {
 	return buf.String()
 }
 
-func (tmpl *Template) RenderWriter(w io.Writer, context ...interface{}) {
+func (tmpl *Template) RenderTo(w io.Writer, context ...interface{}) {
 	contextChain := []interface{}{}
 	for _, c := range context {
 		val := reflect.ValueOf(c)
@@ -581,14 +581,14 @@ func Render(data string, context ...interface{}) string {
 	return tmpl.Render(context...)
 }
 
-func RenderWriter(w io.Writer, data string, context ...interface{}) error {
+func RenderTo(w io.Writer, data string, context ...interface{}) error {
 	tmpl, err := ParseString(data)
 
 	if err != nil {
 		return err
 	}
 
-	tmpl.RenderWriter(w, context...)
+	tmpl.RenderTo(w, context...)
 	return nil
 }
 

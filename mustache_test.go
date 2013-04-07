@@ -160,7 +160,7 @@ func TestWriter(t *testing.T) {
 	var buf bytes.Buffer
 	for _, test := range tests {
 		buf.Reset()
-		RenderWriter(&buf, test.tmpl, test.context)
+		RenderTo(&buf, test.tmpl, test.context)
 		output := buf.String()
 		if output != test.expected {
 			t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
