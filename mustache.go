@@ -2,7 +2,6 @@ package mustache
 
 import (
     "bytes"
-    //"container/vector"
     "errors"
     "fmt"
     "io"
@@ -26,7 +25,7 @@ type sectionElement struct {
     name      string
     inverted  bool
     startline int
-    elems     []interface{} //*vector.Vector
+    elems     []interface{}
 }
 
 type Template struct {
@@ -36,7 +35,7 @@ type Template struct {
     p       int
     curline int
     dir     string
-    elems   []interface{} //*vector.Vector
+    elems   []interface{}
 }
 
 type parseError struct {
@@ -196,7 +195,6 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
             }
 
             se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
-
             err := tmpl.parseSection(&se)
             if err != nil {
                 return err
@@ -242,7 +240,6 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 func (tmpl *Template) parse() error {
     for {
         text, err := tmpl.readString(tmpl.otag)
-
         if err == io.EOF {
             //put the remaining text in a block
             tmpl.elems = append(tmpl.elems, &textElement{[]byte(text)})
@@ -379,8 +376,8 @@ func lookup(contextChain []interface{}, name string) reflect.Value {
     }()
 
 Outer:
-    for i := len(contextChain) - 1; i >= 0; i-- {
-        v := contextChain[i].(reflect.Value)
+    for _, ctx := range contextChain { //i := len(contextChain) - 1; i >= 0; i-- {
+        v := ctx.(reflect.Value)
         for v.IsValid() {
             typ := v.Type()
             if n := v.Type().NumMethod(); n > 0 {
@@ -419,7 +416,7 @@ Outer:
     return reflect.Value{}
 }
 
-func isNil(v reflect.Value) bool {
+func isEmpty(v reflect.Value) bool {
     if !v.IsValid() || v.Interface() == nil {
         return true
     }
@@ -431,6 +428,8 @@ func isNil(v reflect.Value) bool {
     switch val := valueInd; val.Kind() {
     case reflect.Bool:
         return !val.Bool()
+    case reflect.Slice:
+        return val.Len() == 0
     }
 
     return false
@@ -454,12 +453,12 @@ loop:
 func renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer) {
     value := lookup(contextChain, section.name)
     var context = contextChain[len(contextChain)-1].(reflect.Value)
-    contexts := []interface{}{}
+    var contexts = []interface{}{}
     // if the value is nil, check if it's an inverted section
-    isNil := isNil(value)
-    if isNil && !section.inverted || !isNil && section.inverted {
+    isEmpty := isEmpty(value)
+    if isEmpty && !section.inverted || !isEmpty && section.inverted {
         return
-    } else {
+    } else if !section.inverted {
         valueInd := indirect(value)
         switch val := valueInd; val.Kind() {
         case reflect.Slice:
@@ -475,16 +474,18 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
         default:
             contexts = append(contexts, context)
         }
+    } else if section.inverted {
+        contexts = append(contexts, context)
     }
 
+    chain2 := make([]interface{}, len(contextChain)+1)
+    copy(chain2[1:], contextChain)
     //by default we execute the section
-    for j := 0; j < len(contexts); j++ {
-        ctx := contexts[j].(reflect.Value)
-        contextChain = append(contextChain, ctx)
-        for i := 0; i < len(section.elems); i++ {
-            renderElement(section.elems[i], contextChain, buf)
+    for _, ctx := range contexts {
+        chain2[0] = ctx
+        for _, elem := range section.elems {
+            renderElement(elem, chain2, buf)
         }
-        contextChain = contextChain[:len(contextChain)-1]
     }
 }
 
@@ -498,8 +499,8 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
                 fmt.Printf("Panic while looking up %q: %s\n", elem.name, r)
             }
         }()
-
         val := lookup(contextChain, elem.name)
+
         if val.IsValid() {
             if elem.raw {
                 fmt.Fprint(buf, val.Interface())
@@ -516,14 +517,14 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 }
 
 func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) {
-    for i := 0; i < len(tmpl.elems); i++ {
-        renderElement(tmpl.elems[i], contextChain, buf)
+    for _, elem := range tmpl.elems {
+        renderElement(elem, contextChain, buf)
     }
 }
 
 func (tmpl *Template) Render(context ...interface{}) string {
     var buf bytes.Buffer
-    contextChain := []interface{}{}
+    var contextChain []interface{}
     for _, c := range context {
         val := reflect.ValueOf(c)
         contextChain = append(contextChain, val)
@@ -539,6 +540,14 @@ func (tmpl *Template) RenderTo(w io.Writer, context ...interface{}) {
         contextChain = append(contextChain, val)
     }
     tmpl.renderTemplate(contextChain, w)
+}
+
+func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) string {
+    content := tmpl.Render(context...)
+    allContext := make([]interface{}, len(context)+1)
+    copy(allContext[1:], context)
+    allContext[0] = map[string]string{"content": content}
+    return layout.Render(allContext...)
 }
 
 func ParseString(data string) (*Template, error) {
@@ -573,11 +582,9 @@ func ParseFile(filename string) (*Template, error) {
 
 func Render(data string, context ...interface{}) string {
     tmpl, err := ParseString(data)
-
     if err != nil {
         return err.Error()
     }
-
     return tmpl.Render(context...)
 }
 
@@ -592,12 +599,35 @@ func RenderTo(w io.Writer, data string, context ...interface{}) error {
     return nil
 }
 
+func RenderInLayout(data string, layoutData string, context ...interface{}) string {
+    layoutTmpl, err := ParseString(layoutData)
+    if err != nil {
+        return err.Error()
+    }
+    tmpl, err := ParseString(data)
+    if err != nil {
+        return err.Error()
+    }
+    return tmpl.RenderInLayout(layoutTmpl, context...)
+}
+
 func RenderFile(filename string, context ...interface{}) string {
     tmpl, err := ParseFile(filename)
+    if err != nil {
+        return err.Error()
+    }
+    return tmpl.Render(context...)
+}
 
+func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) string {
+    layoutTmpl, err := ParseFile(layoutFile)
     if err != nil {
         return err.Error()
     }
 
-    return tmpl.Render(context...)
+    tmpl, err := ParseFile(filename)
+    if err != nil {
+        return err.Error()
+    }
+    return tmpl.RenderInLayout(layoutTmpl, context...)
 }
