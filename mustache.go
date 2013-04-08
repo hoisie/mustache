@@ -416,7 +416,7 @@ Outer:
     return reflect.Value{}
 }
 
-func isNil(v reflect.Value) bool {
+func isEmpty(v reflect.Value) bool {
     if !v.IsValid() || v.Interface() == nil {
         return true
     }
@@ -428,6 +428,8 @@ func isNil(v reflect.Value) bool {
     switch val := valueInd; val.Kind() {
     case reflect.Bool:
         return !val.Bool()
+    case reflect.Slice:
+        return val.Len() == 0
     }
 
     return false
@@ -453,10 +455,10 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
     var context = contextChain[len(contextChain)-1].(reflect.Value)
     var contexts = []interface{}{}
     // if the value is nil, check if it's an inverted section
-    isNil := isNil(value)
-    if isNil && !section.inverted || !isNil && section.inverted {
+    isEmpty := isEmpty(value)
+    if isEmpty && !section.inverted || !isEmpty && section.inverted {
         return
-    } else {
+    } else if !section.inverted {
         valueInd := indirect(value)
         switch val := valueInd; val.Kind() {
         case reflect.Slice:
@@ -472,6 +474,8 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
         default:
             contexts = append(contexts, context)
         }
+    } else if section.inverted {
+        contexts = append(contexts, context)
     }
 
     chain2 := make([]interface{}, len(contextChain)+1)

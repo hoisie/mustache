@@ -132,6 +132,7 @@ var tests = []Test{
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": false}, "b"},
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": true}, ""},
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": "nonempty string"}, ""},
+    {`{{^a}}b{{/a}}`, map[string]interface{}{"a": []string{}}, "b"},
 
     //function tests
     {`{{#users}}{{Func1}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
