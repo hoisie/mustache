@@ -389,6 +389,9 @@ Outer:
                     }
                 }
             }
+            if name == "." {
+              return v
+            }
             switch av := v; av.Kind() {
             case reflect.Ptr:
                 v = av.Elem()
