@@ -36,6 +36,7 @@ type Template struct {
     curline int
     dir     string
     elems   []interface{}
+    mustRender bool
 }
 
 type parseError struct {
@@ -368,16 +369,24 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
 
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
-func lookup(contextChain []interface{}, name string) reflect.Value {
+func lookup(contextChain []interface{}, name string, mustRender bool) (reflect.Value, error) {
+    var err error
     defer func() {
         if r := recover(); r != nil {
-            fmt.Printf("Panic while looking up %q: %s\n", name, r)
+            errorMsg := fmt.Sprintf("Panic while looking up %q: %s", name, r)
+            if mustRender == true {
+                err = errors.New(errorMsg)
+            } else {
+                fmt.Println(errorMsg)
+            }
         }
     }()
 
 Outer:
-    for _, ctx := range contextChain { //i := len(contextChain) - 1; i >= 0; i-- {
+    for _, ctx := range contextChain {
         v := ctx.(reflect.Value)
+        fmt.Println(v)
+
         for v.IsValid() {
             typ := v.Type()
             if n := v.Type().NumMethod(); n > 0 {
@@ -385,12 +394,12 @@ Outer:
                     m := typ.Method(i)
                     mtyp := m.Type
                     if m.Name == name && mtyp.NumIn() == 1 {
-                        return v.Method(i).Call(nil)[0]
+                        return v.Method(i).Call(nil)[0], err
                     }
                 }
             }
             if name == "." {
-              return v
+              return v, err
             }
             switch av := v; av.Kind() {
             case reflect.Ptr:
@@ -400,23 +409,27 @@ Outer:
             case reflect.Struct:
                 ret := av.FieldByName(name)
                 if ret.IsValid() {
-                    return ret
+                    return ret, err
                 } else {
                     continue Outer
                 }
             case reflect.Map:
                 ret := av.MapIndex(reflect.ValueOf(name))
                 if ret.IsValid() {
-                    return ret
+                    return ret, err
                 } else {
                     continue Outer
                 }
             default:
-                continue Outer
+                if mustRender == true {
+                    panic("Element not found")
+                } else {
+                    continue Outer
+                }
             }
         }
     }
-    return reflect.Value{}
+    return reflect.Value{}, err
 }
 
 func isEmpty(v reflect.Value) bool {
@@ -453,8 +466,11 @@ loop:
     return v
 }
 
-func renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer) {
-    value := lookup(contextChain, section.name)
+func renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer, mustRender bool) (err error) {
+    value, err := lookup(contextChain, section.name, mustRender)
+    if err != nil && mustRender == true {
+        return err
+    }
     var context = contextChain[len(contextChain)-1].(reflect.Value)
     var contexts = []interface{}{}
     // if the value is nil, check if it's an inverted section
@@ -487,22 +503,34 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
     for _, ctx := range contexts {
         chain2[0] = ctx
         for _, elem := range section.elems {
-            renderElement(elem, chain2, buf)
+            err = renderElement(elem, chain2, buf, mustRender)
+            if err != nil && mustRender == true {
+                return err
+            }
         }
     }
+    return
 }
 
-func renderElement(element interface{}, contextChain []interface{}, buf io.Writer) {
+func renderElement(element interface{}, contextChain []interface{}, buf io.Writer, mustRender bool) (err error) {
     switch elem := element.(type) {
     case *textElement:
         buf.Write(elem.text)
     case *varElement:
         defer func() {
             if r := recover(); r != nil {
-                fmt.Printf("Panic while looking up %q: %s\n", elem.name, r)
+                errorMsg := fmt.Sprintf("Panic while looking up %q: %s", elem.name, r)
+                if mustRender == true {
+                    err = errors.New(errorMsg)
+                } else {
+                    fmt.Println(errorMsg)
+                }
             }
         }()
-        val := lookup(contextChain, elem.name)
+        val, err := lookup(contextChain, elem.name, mustRender)
+        if err != nil && mustRender == true {
+            return err
+        }
 
         if val.IsValid() {
             if elem.raw {
@@ -513,15 +541,17 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
             }
         }
     case *sectionElement:
-        renderSection(elem, contextChain, buf)
+        renderSection(elem, contextChain, buf, mustRender)
     case *Template:
-        elem.renderTemplate(contextChain, buf)
+        elem.renderTemplate(contextChain, buf, mustRender)
     }
+
+    return err
 }
 
-func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) {
+func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer, mustRender bool) {
     for _, elem := range tmpl.elems {
-        renderElement(elem, contextChain, buf)
+        renderElement(elem, contextChain, buf, mustRender)
     }
 }
 
@@ -532,7 +562,7 @@ func (tmpl *Template) Render(context ...interface{}) string {
         val := reflect.ValueOf(c)
         contextChain = append(contextChain, val)
     }
-    tmpl.renderTemplate(contextChain, &buf)
+    tmpl.renderTemplate(contextChain, &buf, tmpl.mustRender)
     return buf.String()
 }
 
@@ -546,7 +576,7 @@ func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) s
 
 func ParseString(data string) (*Template, error) {
     cwd := os.Getenv("CWD")
-    tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}}
+    tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}, false}
     err := tmpl.parse()
 
     if err != nil {
@@ -564,9 +594,8 @@ func ParseFile(filename string) (*Template, error) {
 
     dirname, _ := path.Split(filename)
 
-    tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}}
+    tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}, false}
     err = tmpl.parse()
-
     if err != nil {
         return nil, err
     }
@@ -580,6 +609,16 @@ func Render(data string, context ...interface{}) string {
         return err.Error()
     }
     return tmpl.Render(context...)
+}
+
+func MustRender(data string, context ...interface{}) (string, error) {
+    tmpl, err := ParseString(data)
+    tmpl.mustRender = true
+    if err != nil {
+        var ret string
+        return ret, err
+    }
+    return tmpl.Render(context...), nil
 }
 
 func RenderInLayout(data string, layoutData string, context ...interface{}) string {
@@ -600,6 +639,16 @@ func RenderFile(filename string, context ...interface{}) string {
         return err.Error()
     }
     return tmpl.Render(context...)
+}
+
+func MustRenderFile(filename string, context ...interface{}) (string, error) {
+    tmpl, err := ParseFile(filename)
+    tmpl.mustRender = true
+    if err != nil {
+        var ret string
+        return ret, err
+    }
+    return tmpl.Render(context...), nil
 }
 
 func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) string {
