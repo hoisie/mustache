@@ -195,7 +195,7 @@ func TestPartial(t *testing.T) {
 }
 
 func TestRemotePartials(t *testing.T) {
-    tpl := &Template{}
+    tpl := New()
     filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test4.mustache")
     partialFilename := path.Join(path.Join(os.Getenv("PWD"), "tests/partials"), "article.mustache")
     tpl.SetPartialPath("article", partialFilename)

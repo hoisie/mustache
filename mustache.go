@@ -12,6 +12,11 @@ import (
     "strings"
 )
 
+const (
+    OTag = "{{"
+    CTag = "}}"
+)
+
 type textElement struct {
     text []byte
 }
@@ -528,6 +533,14 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
     }
 }
 
+func (tmpl *Template) init() {
+    tmpl.otag = OTag
+    tmpl.ctag = CTag
+    tmpl.p = 0
+    tmpl.curline = 1
+    tmpl.elems = []interface{}{}
+}
+
 func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) {
     for _, elem := range tmpl.elems {
         renderElement(elem, contextChain, buf)
@@ -568,20 +581,27 @@ func (tmpl *Template) ParseFile(filename string) error {
         return err
     }
     dirname, _ := path.Split(filename)
+    if len(tmpl.otag) < 1 {
+        tmpl.init()
+    }
     tmpl.data = string(data)
-    tmpl.otag = "{{"
-    tmpl.ctag = "}}"
-    tmpl.p = 0
-    tmpl.curline = 1
     tmpl.dir = dirname
-    tmpl.elems = []interface{}{}
     err = tmpl.parse()
     return err
 }
 
+func New() *Template {
+    tmpl := &Template{}
+    tmpl.init()
+    return tmpl
+}
+
 func ParseString(data string) (*Template, error) {
     cwd := os.Getenv("CWD")
-    tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}, nil}
+    tmpl := New()
+    tmpl.data = data
+    tmpl.dir = cwd
+
     err := tmpl.parse()
 
     if err != nil {
@@ -599,7 +619,10 @@ func ParseFile(filename string) (*Template, error) {
 
     dirname, _ := path.Split(filename)
 
-    tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}, nil}
+    tmpl := New()
+    tmpl.data = string(data)
+    tmpl.dir = dirname
+
     err = tmpl.parse()
 
     if err != nil {
