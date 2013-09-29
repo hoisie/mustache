@@ -126,12 +126,18 @@ var tests = []Test{
     {"{{#users}}\n{{Name}}\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\nMike\n"},
     {"{{#users}}\r\n{{Name}}\r\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\r\nMike\r\n"},
 
+    // implicit iterator tests
+    {`"{{#list}}({{.}}){{/list}}"`, map[string]interface{}{"list": []string{"a", "b", "c", "d", "e"}}, "\"(a)(b)(c)(d)(e)\""},
+    {`"{{#list}}({{.}}){{/list}}"`, map[string]interface{}{"list": []int{1, 2, 3, 4, 5}}, "\"(1)(2)(3)(4)(5)\""},
+    {`"{{#list}}({{.}}){{/list}}"`, map[string]interface{}{"list": []float64{1.10, 2.20, 3.30, 4.40, 5.50}}, "\"(1.1)(2.2)(3.3)(4.4)(5.5)\""},
+
     //inverted section tests
     {`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc"},
     {`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]interface{}{"a": "a", "b": false, "c": "c"}, "abc"},
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": false}, "b"},
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": true}, ""},
     {`{{^a}}b{{/a}}`, map[string]interface{}{"a": "nonempty string"}, ""},
+    {`{{^a}}b{{/a}}`, map[string]interface{}{"a": []string{}}, "b"},
 
     //function tests
     {`{{#users}}{{Func1}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
@@ -166,6 +172,9 @@ var tests = []Test{
     {`{{#categories}}{{DisplayName}}{{/categories}}`, map[string][]*Category{
         "categories": {&Category{"a", "b"}},
     }, "a - b"},
+
+    //invalid syntax - https://github.com/hoisie/mustache/issues/10
+    {`{{#a}}{{#b}}{{/a}}{{/b}}}`, map[string]interface{}{}, "line 1: interleaved closing tag: a"},
 }
 
 func TestBasic(t *testing.T) {
