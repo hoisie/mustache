@@ -26,6 +26,9 @@ type sectionElement struct {
     inverted  bool
     startline int
     elems     []interface{}
+	rawBody       string // The unexpanded content; used for lambda sections.
+	params        []string
+	parentSection *sectionElement
 }
 
 type Template struct {
@@ -130,6 +133,9 @@ func (tmpl *Template) parsePartial(name string) (*Template, error) {
         name + ".mustache",
         name + ".stache",
     }
+
+	//fmt.Printf("possible filenames: %s \n --- \n", filenames)
+
     var filename string
     for _, name := range filenames {
         f, err := os.Open(name)
@@ -152,8 +158,18 @@ func (tmpl *Template) parsePartial(name string) (*Template, error) {
     return partial, nil
 }
 
+func (s *sectionElement) writeRawBody(body string) {
+	if s.parentSection != nil {
+		s.rawBody += body
+		s.parentSection.rawBody += body
+	} else {
+		s.rawBody += body
+	}
+}
+
 func (tmpl *Template) parseSection(section *sectionElement) error {
     for {
+
         text, err := tmpl.readString(tmpl.otag)
 
         if err == io.EOF {
@@ -162,6 +178,10 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 
         // put text into an item
         text = text[0 : len(text)-len(tmpl.otag)]
+
+		//store the rawBody for lambda support.
+		section.writeRawBody(text)
+
         section.elems = append(section.elems, &textElement{[]byte(text)})
         if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
             text, err = tmpl.readString("}" + tmpl.ctag)
@@ -185,7 +205,23 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
             //ignore comment
             break
         case '#', '^':
-            name := strings.TrimSpace(tag[1:])
+			unsplitTagName := strings.TrimSpace(tag[1:])
+			splitTag := strings.Split(unsplitTagName, " ")
+
+			name := splitTag[0]
+			params := make([]string, 0)
+
+			if len(splitTag) > 1 {
+				params = splitTag[1:]
+			}
+
+			if tag[0] == '#' {
+				section.writeRawBody("{{")
+				section.writeRawBody(tag)
+				section.writeRawBody("}}")
+			} else {
+				section.writeRawBody("{{^" + name + "}}")
+			}
 
             //ignore the newline when a section starts
             if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
@@ -194,7 +230,13 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
                 tmpl.p += 2
             }
 
-            se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
+			var se sectionElement
+			if section.parentSection == nil {
+				se = sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}, "", params, section}
+			} else {
+				se = sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}, "", params, section.parentSection}
+			}
+
             err := tmpl.parseSection(&se)
             if err != nil {
                 return err
@@ -202,6 +244,12 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
             section.elems = append(section.elems, &se)
         case '/':
             name := strings.TrimSpace(tag[1:])
+
+			//save this only to the parent's raw body.
+			if section.parentSection != nil && section.parentSection.name != name {
+				section.parentSection.rawBody += "{{/" + name + "}}"
+			}
+
             if name != section.name {
                 return parseError{tmpl.curline, "interleaved closing tag: " + name}
             } else {
@@ -209,6 +257,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
             }
         case '>':
             name := strings.TrimSpace(tag[1:])
+			section.writeRawBody("{{>" + name + "}}")
             partial, err := tmpl.parsePartial(name)
             if err != nil {
                 return err
@@ -225,6 +274,8 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
                 tmpl.ctag = newtags[1]
             }
         case '{':
+			name := strings.TrimSpace(tag[1:])
+			section.writeRawBody("{{{" + name + "}}}")
             if tag[len(tag)-1] == '}' {
                 //use a raw tag
                 section.elems = append(section.elems, &varElement{tag[1 : len(tag)-1], true})
@@ -271,7 +322,15 @@ func (tmpl *Template) parse() error {
             //ignore comment
             break
         case '#', '^':
-            name := strings.TrimSpace(tag[1:])
+			unsplitTagName := strings.TrimSpace(tag[1:])
+			splitTag := strings.Split(unsplitTagName, " ")
+
+			name := splitTag[0]
+			params := make([]string, 0)
+
+			if len(splitTag) > 1 {
+				params = splitTag[1:]
+			}
 
             if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
                 tmpl.p += 1
@@ -279,7 +338,7 @@ func (tmpl *Template) parse() error {
                 tmpl.p += 2
             }
 
-            se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
+			se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}, "", params, nil}
             err := tmpl.parseSection(&se)
             if err != nil {
                 return err
@@ -464,6 +523,16 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
     } else if !section.inverted {
         valueInd := indirect(value)
         switch val := valueInd; val.Kind() {
+		case reflect.Func:
+			argSlice := []reflect.Value{reflect.ValueOf(section.params), reflect.ValueOf(section.rawBody)}
+			//set the elements to a single textElement; containing the rawBody
+			out := val.Call(argSlice)
+			if len(out) > 0 && out[0].Kind() == reflect.String {
+				section.elems = make([]interface{}, 0, 1) //reset the section
+				section.elems = append(section.elems, &textElement{text: []byte(out[0].String())})
+			}
+
+			contexts = append(contexts, context) // if it falls through; this will ensure that the block is still rendered [unparsed]
         case reflect.Slice:
             for i := 0; i < val.Len(); i++ {
                 contexts = append(contexts, val.Index(i))
