@@ -433,6 +433,8 @@ func isEmpty(v reflect.Value) bool {
         return !val.Bool()
     case reflect.Slice:
         return val.Len() == 0
+    case reflect.String:
+        return len(strings.TrimSpace(val.String())) == 0
     }
 
     return false
