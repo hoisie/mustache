@@ -140,7 +140,8 @@ func (tmpl *Template) parsePartial(name string) (*Template, error) {
         }
     }
     if filename == "" {
-        return nil, errors.New(fmt.Sprintf("Could not find partial %q", name))
+        return nil, errors.New(fmt.Sprintf("Could not find partial %q in %q",
+            name, filenames))
     }
 
     partial, err := ParseFile(filename)
@@ -390,7 +391,7 @@ Outer:
                 }
             }
             if name == "." {
-              return v
+                return v
             }
             switch av := v; av.Kind() {
             case reflect.Ptr:
