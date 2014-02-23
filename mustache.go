@@ -457,8 +457,16 @@ loop:
 
 func renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer) {
     value := lookup(contextChain, section.name)
-    var context = contextChain[len(contextChain)-1].(reflect.Value)
+    var context interface{}
     var contexts = []interface{}{}
+
+    // guard against empty contextChain
+    if len(contextChain) > 0 {
+        context = contextChain[len(contextChain)-1].(reflect.Value)
+    } else {
+        context = make(map[string]interface{})
+    }
+
     // if the value is nil, check if it's an inverted section
     isEmpty := isEmpty(value)
     if isEmpty && !section.inverted || !isEmpty && section.inverted {
