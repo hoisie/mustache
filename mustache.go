@@ -28,6 +28,11 @@ type sectionElement struct {
     elems     []interface{}
 }
 
+type partialElement struct {
+    tmpl *Template
+    name string
+}
+
 type Template struct {
     data    string
     otag    string
@@ -209,10 +214,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
             }
         case '>':
             name := strings.TrimSpace(tag[1:])
-            partial, err := tmpl.parsePartial(name)
-            if err != nil {
-                return err
-            }
+            partial := &partialElement{tmpl, name}
             section.elems = append(section.elems, partial)
         case '=':
             if tag[len(tag)-1] != '=' {
@@ -514,6 +516,9 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
         }
     case *sectionElement:
         renderSection(elem, contextChain, buf)
+    case *partialElement:
+        child, _ := elem.tmpl.parsePartial(elem.name)
+        child.renderTemplate(contextChain, buf)
     case *Template:
         elem.renderTemplate(contextChain, buf)
     }
