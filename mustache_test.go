@@ -2,17 +2,9 @@ package mustache
 
 import (
     "testing"
-    "encoding/json"
     "io/ioutil"
     "os"
 )
-
-func mustDecodeJson (str string) interface{} {
-    var data interface{}
-    err := json.Unmarshal([]byte(str), &data)
-    if(err != nil) { panic(err) }
-    return data
-}
 
 
 
@@ -149,7 +141,7 @@ func TestCommentsSurroundingWhitespace(t *testing.T) {
 // The equals sign (used on both sides) should permit delimiter changes.
 func TestDelimitersPairBehavior(t *testing.T) { 
     template := "{{=<% %>=}}(<%text%>)"
-    data     := mustDecodeJson("{\"text\":\"Hey!\"}")
+    data     := map[string]interface {}{"text":"Hey!"}
     expected := "(Hey!)"
     actual   := Render(template, data)
 
@@ -161,7 +153,7 @@ func TestDelimitersPairBehavior(t *testing.T) {
 // Characters with special meaning regexen should be valid delimiters.
 func TestDelimitersSpecialCharacters(t *testing.T) { 
     template := "({{=[ ]=}}[text])"
-    data     := mustDecodeJson("{\"text\":\"It worked!\"}")
+    data     := map[string]interface {}{"text":"It worked!"}
     expected := "(It worked!)"
     actual   := Render(template, data)
 
@@ -173,7 +165,7 @@ func TestDelimitersSpecialCharacters(t *testing.T) {
 // Delimiters set outside sections should persist.
 func TestDelimitersSections(t *testing.T) { 
     template := "[\n{{#section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|#section|\n  {{data}}\n  |data|\n|/section|\n]\n"
-    data     := mustDecodeJson("{\"data\":\"I got interpolated.\",\"section\":true}")
+    data     := map[string]interface {}{"section":true, "data":"I got interpolated."}
     expected := "[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n"
     actual   := Render(template, data)
 
@@ -185,7 +177,7 @@ func TestDelimitersSections(t *testing.T) {
 // Delimiters set outside inverted sections should persist.
 func TestDelimitersInvertedSections(t *testing.T) { 
     template := "[\n{{^section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|^section|\n  {{data}}\n  |data|\n|/section|\n]\n"
-    data     := mustDecodeJson("{\"data\":\"I got interpolated.\",\"section\":false}")
+    data     := map[string]interface {}{"section":false, "data":"I got interpolated."}
     expected := "[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n"
     actual   := Render(template, data)
 
@@ -200,7 +192,7 @@ func TestDelimitersPartialInheritence(t *testing.T) {
     defer os.Remove("include")
     
     template := "[ {{>include}} ]\n{{= | | =}}\n[ |>include| ]\n"
-    data     := mustDecodeJson("{\"value\":\"yes\"}")
+    data     := map[string]interface {}{"value":"yes"}
     expected := "[ .yes. ]\n[ .yes. ]\n"
     actual   := Render(template, data)
 
@@ -215,7 +207,7 @@ func TestDelimitersPostPartialBehavior(t *testing.T) {
     defer os.Remove("include")
     
     template := "[ {{>include}} ]\n[ .{{value}}.  .|value|. ]\n"
-    data     := mustDecodeJson("{\"value\":\"yes\"}")
+    data     := map[string]interface {}{"value":"yes"}
     expected := "[ .yes.  .yes. ]\n[ .yes.  .|value|. ]\n"
     actual   := Render(template, data)
 
@@ -331,7 +323,7 @@ func TestInterpolationNoInterpolation(t *testing.T) {
 // Unadorned tags should interpolate content into the template.
 func TestInterpolationBasicInterpolation(t *testing.T) { 
     template := "Hello, {{subject}}!\n"
-    data     := mustDecodeJson("{\"subject\":\"world\"}")
+    data     := map[string]interface {}{"subject":"world"}
     expected := "Hello, world!\n"
     actual   := Render(template, data)
 
@@ -343,7 +335,7 @@ func TestInterpolationBasicInterpolation(t *testing.T) {
 // Basic interpolation should be HTML escaped.
 func TestInterpolationHTMLEscaping(t *testing.T) { 
     template := "These characters should be HTML escaped: {{forbidden}}\n"
-    data     := mustDecodeJson("{\"forbidden\":\"\\u0026 \\\" \\u003c \\u003e\"}")
+    data     := map[string]interface {}{"forbidden":"& \" < >"}
     expected := "These characters should be HTML escaped: &amp; &quot; &lt; &gt;\n"
     actual   := Render(template, data)
 
@@ -355,7 +347,7 @@ func TestInterpolationHTMLEscaping(t *testing.T) {
 // Triple mustaches should interpolate without HTML escaping.
 func TestInterpolationTripleMustache(t *testing.T) { 
     template := "These characters should not be HTML escaped: {{{forbidden}}}\n"
-    data     := mustDecodeJson("{\"forbidden\":\"\\u0026 \\\" \\u003c \\u003e\"}")
+    data     := map[string]interface {}{"forbidden":"& \" < >"}
     expected := "These characters should not be HTML escaped: & \" < >\n"
     actual   := Render(template, data)
 
@@ -367,7 +359,7 @@ func TestInterpolationTripleMustache(t *testing.T) {
 // Ampersand should interpolate without HTML escaping.
 func TestInterpolationAmpersand(t *testing.T) { 
     template := "These characters should not be HTML escaped: {{&forbidden}}\n"
-    data     := mustDecodeJson("{\"forbidden\":\"\\u0026 \\\" \\u003c \\u003e\"}")
+    data     := map[string]interface {}{"forbidden":"& \" < >"}
     expected := "These characters should not be HTML escaped: & \" < >\n"
     actual   := Render(template, data)
 
@@ -379,7 +371,7 @@ func TestInterpolationAmpersand(t *testing.T) {
 // Integers should interpolate seamlessly.
 func TestInterpolationBasicIntegerInterpolation(t *testing.T) { 
     template := "\"{{mph}} miles an hour!\""
-    data     := mustDecodeJson("{\"mph\":85}")
+    data     := map[string]interface {}{"mph":85}
     expected := "\"85 miles an hour!\""
     actual   := Render(template, data)
 
@@ -391,7 +383,7 @@ func TestInterpolationBasicIntegerInterpolation(t *testing.T) {
 // Integers should interpolate seamlessly.
 func TestInterpolationTripleMustacheIntegerInterpolation(t *testing.T) { 
     template := "\"{{{mph}}} miles an hour!\""
-    data     := mustDecodeJson("{\"mph\":85}")
+    data     := map[string]interface {}{"mph":85}
     expected := "\"85 miles an hour!\""
     actual   := Render(template, data)
 
@@ -403,7 +395,7 @@ func TestInterpolationTripleMustacheIntegerInterpolation(t *testing.T) {
 // Integers should interpolate seamlessly.
 func TestInterpolationAmpersandIntegerInterpolation(t *testing.T) { 
     template := "\"{{&mph}} miles an hour!\""
-    data     := mustDecodeJson("{\"mph\":85}")
+    data     := map[string]interface {}{"mph":85}
     expected := "\"85 miles an hour!\""
     actual   := Render(template, data)
 
@@ -415,7 +407,7 @@ func TestInterpolationAmpersandIntegerInterpolation(t *testing.T) {
 // Decimals should interpolate seamlessly with proper significance.
 func TestInterpolationBasicDecimalInterpolation(t *testing.T) { 
     template := "\"{{power}} jiggawatts!\""
-    data     := mustDecodeJson("{\"power\":1.21}")
+    data     := map[string]interface {}{"power":1.21}
     expected := "\"1.21 jiggawatts!\""
     actual   := Render(template, data)
 
@@ -427,7 +419,7 @@ func TestInterpolationBasicDecimalInterpolation(t *testing.T) {
 // Decimals should interpolate seamlessly with proper significance.
 func TestInterpolationTripleMustacheDecimalInterpolation(t *testing.T) { 
     template := "\"{{{power}}} jiggawatts!\""
-    data     := mustDecodeJson("{\"power\":1.21}")
+    data     := map[string]interface {}{"power":1.21}
     expected := "\"1.21 jiggawatts!\""
     actual   := Render(template, data)
 
@@ -439,7 +431,7 @@ func TestInterpolationTripleMustacheDecimalInterpolation(t *testing.T) {
 // Decimals should interpolate seamlessly with proper significance.
 func TestInterpolationAmpersandDecimalInterpolation(t *testing.T) { 
     template := "\"{{&power}} jiggawatts!\""
-    data     := mustDecodeJson("{\"power\":1.21}")
+    data     := map[string]interface {}{"power":1.21}
     expected := "\"1.21 jiggawatts!\""
     actual   := Render(template, data)
 
@@ -484,7 +476,7 @@ func TestInterpolationAmpersandContextMissInterpolation(t *testing.T) {
 // Dotted names should be considered a form of shorthand for sections.
 func TestInterpolationDottedNamesBasicInterpolation(t *testing.T) { 
     template := "\"{{person.name}}\" == \"{{#person}}{{name}}{{/person}}\""
-    data     := mustDecodeJson("{\"person\":{\"name\":\"Joe\"}}")
+    data     := map[string]interface {}{"person":map[string]interface {}{"name":"Joe"}}
     expected := "\"Joe\" == \"Joe\""
     actual   := Render(template, data)
 
@@ -496,7 +488,7 @@ func TestInterpolationDottedNamesBasicInterpolation(t *testing.T) {
 // Dotted names should be considered a form of shorthand for sections.
 func TestInterpolationDottedNamesTripleMustacheInterpolation(t *testing.T) { 
     template := "\"{{{person.name}}}\" == \"{{#person}}{{{name}}}{{/person}}\""
-    data     := mustDecodeJson("{\"person\":{\"name\":\"Joe\"}}")
+    data     := map[string]interface {}{"person":map[string]interface {}{"name":"Joe"}}
     expected := "\"Joe\" == \"Joe\""
     actual   := Render(template, data)
 
@@ -508,7 +500,7 @@ func TestInterpolationDottedNamesTripleMustacheInterpolation(t *testing.T) {
 // Dotted names should be considered a form of shorthand for sections.
 func TestInterpolationDottedNamesAmpersandInterpolation(t *testing.T) { 
     template := "\"{{&person.name}}\" == \"{{#person}}{{&name}}{{/person}}\""
-    data     := mustDecodeJson("{\"person\":{\"name\":\"Joe\"}}")
+    data     := map[string]interface {}{"person":map[string]interface {}{"name":"Joe"}}
     expected := "\"Joe\" == \"Joe\""
     actual   := Render(template, data)
 
@@ -520,7 +512,7 @@ func TestInterpolationDottedNamesAmpersandInterpolation(t *testing.T) {
 // Dotted names should be functional to any level of nesting.
 func TestInterpolationDottedNamesArbitraryDepth(t *testing.T) { 
     template := "\"{{a.b.c.d.e.name}}\" == \"Phil\""
-    data     := mustDecodeJson("{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"name\":\"Phil\"}}}}}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":map[string]interface {}{"d":map[string]interface {}{"e":map[string]interface {}{"name":"Phil"}}}}}}
     expected := "\"Phil\" == \"Phil\""
     actual   := Render(template, data)
 
@@ -532,7 +524,7 @@ func TestInterpolationDottedNamesArbitraryDepth(t *testing.T) {
 // Any falsey value prior to the last part of the name should yield ''.
 func TestInterpolationDottedNamesBrokenChains(t *testing.T) { 
     template := "\"{{a.b.c}}\" == \"\""
-    data     := mustDecodeJson("{\"a\":{}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{}}
     expected := "\"\" == \"\""
     actual   := Render(template, data)
 
@@ -544,7 +536,7 @@ func TestInterpolationDottedNamesBrokenChains(t *testing.T) {
 // Each part of a dotted name should resolve only against its parent.
 func TestInterpolationDottedNamesBrokenChainResolution(t *testing.T) { 
     template := "\"{{a.b.c.name}}\" == \"\""
-    data     := mustDecodeJson("{\"a\":{\"b\":{}},\"c\":{\"name\":\"Jim\"}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{}}, "c":map[string]interface {}{"name":"Jim"}}
     expected := "\"\" == \"\""
     actual   := Render(template, data)
 
@@ -556,7 +548,7 @@ func TestInterpolationDottedNamesBrokenChainResolution(t *testing.T) {
 // The first part of a dotted name should resolve as any other name.
 func TestInterpolationDottedNamesInitialResolution(t *testing.T) { 
     template := "\"{{#a}}{{b.c.d.e.name}}{{/a}}\" == \"Phil\""
-    data     := mustDecodeJson("{\"a\":{\"b\":{\"c\":{\"d\":{\"e\":{\"name\":\"Phil\"}}}}},\"b\":{\"c\":{\"d\":{\"e\":{\"name\":\"Wrong\"}}}}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":map[string]interface {}{"d":map[string]interface {}{"e":map[string]interface {}{"name":"Phil"}}}}}, "b":map[string]interface {}{"c":map[string]interface {}{"d":map[string]interface {}{"e":map[string]interface {}{"name":"Wrong"}}}}}
     expected := "\"Phil\" == \"Phil\""
     actual   := Render(template, data)
 
@@ -568,7 +560,7 @@ func TestInterpolationDottedNamesInitialResolution(t *testing.T) {
 // Interpolation should not alter surrounding whitespace.
 func TestInterpolationInterpolationSurroundingWhitespace(t *testing.T) { 
     template := "| {{string}} |"
-    data     := mustDecodeJson("{\"string\":\"---\"}")
+    data     := map[string]interface {}{"string":"---"}
     expected := "| --- |"
     actual   := Render(template, data)
 
@@ -580,7 +572,7 @@ func TestInterpolationInterpolationSurroundingWhitespace(t *testing.T) {
 // Interpolation should not alter surrounding whitespace.
 func TestInterpolationTripleMustacheSurroundingWhitespace(t *testing.T) { 
     template := "| {{{string}}} |"
-    data     := mustDecodeJson("{\"string\":\"---\"}")
+    data     := map[string]interface {}{"string":"---"}
     expected := "| --- |"
     actual   := Render(template, data)
 
@@ -592,7 +584,7 @@ func TestInterpolationTripleMustacheSurroundingWhitespace(t *testing.T) {
 // Interpolation should not alter surrounding whitespace.
 func TestInterpolationAmpersandSurroundingWhitespace(t *testing.T) { 
     template := "| {{&string}} |"
-    data     := mustDecodeJson("{\"string\":\"---\"}")
+    data     := map[string]interface {}{"string":"---"}
     expected := "| --- |"
     actual   := Render(template, data)
 
@@ -604,7 +596,7 @@ func TestInterpolationAmpersandSurroundingWhitespace(t *testing.T) {
 // Standalone interpolation should not alter surrounding whitespace.
 func TestInterpolationInterpolationStandalone(t *testing.T) { 
     template := "  {{string}}\n"
-    data     := mustDecodeJson("{\"string\":\"---\"}")
+    data     := map[string]interface {}{"string":"---"}
     expected := "  ---\n"
     actual   := Render(template, data)
 
@@ -616,7 +608,7 @@ func TestInterpolationInterpolationStandalone(t *testing.T) {
 // Standalone interpolation should not alter surrounding whitespace.
 func TestInterpolationTripleMustacheStandalone(t *testing.T) { 
     template := "  {{{string}}}\n"
-    data     := mustDecodeJson("{\"string\":\"---\"}")
+    data     := map[string]interface {}{"string":"---"}
     expected := "  ---\n"
     actual   := Render(template, data)
 
@@ -628,7 +620,7 @@ func TestInterpolationTripleMustacheStandalone(t *testing.T) {
 // Standalone interpolation should not alter surrounding whitespace.
 func TestInterpolationAmpersandStandalone(t *testing.T) { 
     template := "  {{&string}}\n"
-    data     := mustDecodeJson("{\"string\":\"---\"}")
+    data     := map[string]interface {}{"string":"---"}
     expected := "  ---\n"
     actual   := Render(template, data)
 
@@ -640,7 +632,7 @@ func TestInterpolationAmpersandStandalone(t *testing.T) {
 // Superfluous in-tag whitespace should be ignored.
 func TestInterpolationInterpolationWithPadding(t *testing.T) { 
     template := "|{{ string }}|"
-    data     := mustDecodeJson("{\"string\":\"---\"}")
+    data     := map[string]interface {}{"string":"---"}
     expected := "|---|"
     actual   := Render(template, data)
 
@@ -652,7 +644,7 @@ func TestInterpolationInterpolationWithPadding(t *testing.T) {
 // Superfluous in-tag whitespace should be ignored.
 func TestInterpolationTripleMustacheWithPadding(t *testing.T) { 
     template := "|{{{ string }}}|"
-    data     := mustDecodeJson("{\"string\":\"---\"}")
+    data     := map[string]interface {}{"string":"---"}
     expected := "|---|"
     actual   := Render(template, data)
 
@@ -664,7 +656,7 @@ func TestInterpolationTripleMustacheWithPadding(t *testing.T) {
 // Superfluous in-tag whitespace should be ignored.
 func TestInterpolationAmpersandWithPadding(t *testing.T) { 
     template := "|{{& string }}|"
-    data     := mustDecodeJson("{\"string\":\"---\"}")
+    data     := map[string]interface {}{"string":"---"}
     expected := "|---|"
     actual   := Render(template, data)
 
@@ -681,7 +673,7 @@ func TestInterpolationAmpersandWithPadding(t *testing.T) {
 // Falsey sections should have their contents rendered.
 func TestInvertedFalsey(t *testing.T) { 
     template := "\"{{^boolean}}This should be rendered.{{/boolean}}\""
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := "\"This should be rendered.\""
     actual   := Render(template, data)
 
@@ -693,7 +685,7 @@ func TestInvertedFalsey(t *testing.T) {
 // Truthy sections should have their contents omitted.
 func TestInvertedTruthy(t *testing.T) { 
     template := "\"{{^boolean}}This should not be rendered.{{/boolean}}\""
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := "\"\""
     actual   := Render(template, data)
 
@@ -705,7 +697,7 @@ func TestInvertedTruthy(t *testing.T) {
 // Objects and hashes should behave like truthy values.
 func TestInvertedContext(t *testing.T) { 
     template := "\"{{^context}}Hi {{name}}.{{/context}}\""
-    data     := mustDecodeJson("{\"context\":{\"name\":\"Joe\"}}")
+    data     := map[string]interface {}{"context":map[string]interface {}{"name":"Joe"}}
     expected := "\"\""
     actual   := Render(template, data)
 
@@ -717,7 +709,7 @@ func TestInvertedContext(t *testing.T) {
 // Lists should behave like truthy values.
 func TestInvertedList(t *testing.T) { 
     template := "\"{{^list}}{{n}}{{/list}}\""
-    data     := mustDecodeJson("{\"list\":[{\"n\":1},{\"n\":2},{\"n\":3}]}")
+    data     := map[string]interface {}{"list":[]interface {}{map[string]interface {}{"n":1}, map[string]interface {}{"n":2}, map[string]interface {}{"n":3}}}
     expected := "\"\""
     actual   := Render(template, data)
 
@@ -729,7 +721,7 @@ func TestInvertedList(t *testing.T) {
 // Empty lists should behave like falsey values.
 func TestInvertedEmptyList(t *testing.T) { 
     template := "\"{{^list}}Yay lists!{{/list}}\""
-    data     := mustDecodeJson("{\"list\":[]}")
+    data     := map[string]interface {}{"list":[]interface {}{}}
     expected := "\"Yay lists!\""
     actual   := Render(template, data)
 
@@ -741,7 +733,7 @@ func TestInvertedEmptyList(t *testing.T) {
 // Multiple inverted sections per template should be permitted.
 func TestInvertedDoubled(t *testing.T) { 
     template := "{{^bool}}\n* first\n{{/bool}}\n* {{two}}\n{{^bool}}\n* third\n{{/bool}}\n"
-    data     := mustDecodeJson("{\"bool\":false,\"two\":\"second\"}")
+    data     := map[string]interface {}{"two":"second", "bool":false}
     expected := "* first\n* second\n* third\n"
     actual   := Render(template, data)
 
@@ -753,7 +745,7 @@ func TestInvertedDoubled(t *testing.T) {
 // Nested falsey sections should have their contents rendered.
 func TestInvertedNestedFalsey(t *testing.T) { 
     template := "| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |"
-    data     := mustDecodeJson("{\"bool\":false}")
+    data     := map[string]interface {}{"bool":false}
     expected := "| A B C D E |"
     actual   := Render(template, data)
 
@@ -765,7 +757,7 @@ func TestInvertedNestedFalsey(t *testing.T) {
 // Nested truthy sections should be omitted.
 func TestInvertedNestedTruthy(t *testing.T) { 
     template := "| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |"
-    data     := mustDecodeJson("{\"bool\":true}")
+    data     := map[string]interface {}{"bool":true}
     expected := "| A  E |"
     actual   := Render(template, data)
 
@@ -788,7 +780,7 @@ func TestInvertedContextMisses(t *testing.T) {
 // Dotted names should be valid for Inverted Section tags.
 func TestInvertedDottedNamesTruthy(t *testing.T) { 
     template := "\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"\""
-    data     := mustDecodeJson("{\"a\":{\"b\":{\"c\":true}}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":true}}}
     expected := "\"\" == \"\""
     actual   := Render(template, data)
 
@@ -800,7 +792,7 @@ func TestInvertedDottedNamesTruthy(t *testing.T) {
 // Dotted names should be valid for Inverted Section tags.
 func TestInvertedDottedNamesFalsey(t *testing.T) { 
     template := "\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\""
-    data     := mustDecodeJson("{\"a\":{\"b\":{\"c\":false}}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":false}}}
     expected := "\"Not Here\" == \"Not Here\""
     actual   := Render(template, data)
 
@@ -812,7 +804,7 @@ func TestInvertedDottedNamesFalsey(t *testing.T) {
 // Dotted names that cannot be resolved should be considered falsey.
 func TestInvertedDottedNamesBrokenChains(t *testing.T) { 
     template := "\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\""
-    data     := mustDecodeJson("{\"a\":{}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{}}
     expected := "\"Not Here\" == \"Not Here\""
     actual   := Render(template, data)
 
@@ -824,7 +816,7 @@ func TestInvertedDottedNamesBrokenChains(t *testing.T) {
 // Inverted sections should not alter surrounding whitespace.
 func TestInvertedSurroundingWhitespace(t *testing.T) { 
     template := " | {{^boolean}}\t|\t{{/boolean}} | \n"
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := " | \t|\t | \n"
     actual   := Render(template, data)
 
@@ -836,7 +828,7 @@ func TestInvertedSurroundingWhitespace(t *testing.T) {
 // Inverted should not alter internal whitespace.
 func TestInvertedInternalWhitespace(t *testing.T) { 
     template := " | {{^boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n"
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := " |  \n  | \n"
     actual   := Render(template, data)
 
@@ -848,7 +840,7 @@ func TestInvertedInternalWhitespace(t *testing.T) {
 // Single-line sections should not alter surrounding whitespace.
 func TestInvertedIndentedInlineSections(t *testing.T) { 
     template := " {{^boolean}}NO{{/boolean}}\n {{^boolean}}WAY{{/boolean}}\n"
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := " NO\n WAY\n"
     actual   := Render(template, data)
 
@@ -860,7 +852,7 @@ func TestInvertedIndentedInlineSections(t *testing.T) {
 // Standalone lines should be removed from the template.
 func TestInvertedStandaloneLines(t *testing.T) { 
     template := "| This Is\n{{^boolean}}\n|\n{{/boolean}}\n| A Line\n"
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := "| This Is\n|\n| A Line\n"
     actual   := Render(template, data)
 
@@ -872,7 +864,7 @@ func TestInvertedStandaloneLines(t *testing.T) {
 // Standalone indented lines should be removed from the template.
 func TestInvertedStandaloneIndentedLines(t *testing.T) { 
     template := "| This Is\n  {{^boolean}}\n|\n  {{/boolean}}\n| A Line\n"
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := "| This Is\n|\n| A Line\n"
     actual   := Render(template, data)
 
@@ -884,7 +876,7 @@ func TestInvertedStandaloneIndentedLines(t *testing.T) {
 // "\r\n" should be considered a newline for standalone tags.
 func TestInvertedStandaloneLineEndings(t *testing.T) { 
     template := "|\r\n{{^boolean}}\r\n{{/boolean}}\r\n|"
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := "|\r\n|"
     actual   := Render(template, data)
 
@@ -896,7 +888,7 @@ func TestInvertedStandaloneLineEndings(t *testing.T) {
 // Standalone tags should not require a newline to precede them.
 func TestInvertedStandaloneWithoutPreviousLine(t *testing.T) { 
     template := "  {{^boolean}}\n^{{/boolean}}\n/"
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := "^\n/"
     actual   := Render(template, data)
 
@@ -908,7 +900,7 @@ func TestInvertedStandaloneWithoutPreviousLine(t *testing.T) {
 // Standalone tags should not require a newline to follow them.
 func TestInvertedStandaloneWithoutNewline(t *testing.T) { 
     template := "^{{^boolean}}\n/\n  {{/boolean}}"
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := "^\n/\n"
     actual   := Render(template, data)
 
@@ -920,7 +912,7 @@ func TestInvertedStandaloneWithoutNewline(t *testing.T) {
 // Superfluous in-tag whitespace should be ignored.
 func TestInvertedPadding(t *testing.T) { 
     template := "|{{^ boolean }}={{/ boolean }}|"
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := "|=|"
     actual   := Render(template, data)
 
@@ -965,7 +957,7 @@ func TestPartialsContext(t *testing.T) {
     defer os.Remove("partial")
     
     template := "\"{{>partial}}\""
-    data     := mustDecodeJson("{\"text\":\"content\"}")
+    data     := map[string]interface {}{"text":"content"}
     expected := "\"*content*\""
     actual   := Render(template, data)
 
@@ -980,7 +972,7 @@ func TestPartialsRecursion(t *testing.T) {
     defer os.Remove("node")
     
     template := "{{>node}}"
-    data     := mustDecodeJson("{\"content\":\"X\",\"nodes\":[{\"content\":\"Y\",\"nodes\":[]}]}")
+    data     := map[string]interface {}{"content":"X", "nodes":[]interface {}{map[string]interface {}{"content":"Y", "nodes":[]interface {}{}}}}
     expected := "X<Y<>>"
     actual   := Render(template, data)
 
@@ -1009,7 +1001,7 @@ func TestPartialsInlineIndentation(t *testing.T) {
     defer os.Remove("partial")
     
     template := "  {{data}}  {{> partial}}\n"
-    data     := mustDecodeJson("{\"data\":\"|\"}")
+    data     := map[string]interface {}{"data":"|"}
     expected := "  |  >\n>\n"
     actual   := Render(template, data)
 
@@ -1066,7 +1058,7 @@ func TestPartialsStandaloneIndentation(t *testing.T) {
     defer os.Remove("partial")
     
     template := "\\\n {{>partial}}\n/\n"
-    data     := mustDecodeJson("{\"content\":\"\\u003c\\n-\\u003e\"}")
+    data     := map[string]interface {}{"content":"<\n->"}
     expected := "\\\n |\n <\n->\n |\n/\n"
     actual   := Render(template, data)
 
@@ -1081,7 +1073,7 @@ func TestPartialsPaddingWhitespace(t *testing.T) {
     defer os.Remove("partial")
     
     template := "|{{> partial }}|"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := "|[]|"
     actual   := Render(template, data)
 
@@ -1098,7 +1090,7 @@ func TestPartialsPaddingWhitespace(t *testing.T) {
 // Truthy sections should have their contents rendered.
 func TestSectionsTruthy(t *testing.T) { 
     template := "\"{{#boolean}}This should be rendered.{{/boolean}}\""
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := "\"This should be rendered.\""
     actual   := Render(template, data)
 
@@ -1110,7 +1102,7 @@ func TestSectionsTruthy(t *testing.T) {
 // Falsey sections should have their contents omitted.
 func TestSectionsFalsey(t *testing.T) { 
     template := "\"{{#boolean}}This should not be rendered.{{/boolean}}\""
-    data     := mustDecodeJson("{\"boolean\":false}")
+    data     := map[string]interface {}{"boolean":false}
     expected := "\"\""
     actual   := Render(template, data)
 
@@ -1122,7 +1114,7 @@ func TestSectionsFalsey(t *testing.T) {
 // Objects and hashes should be pushed onto the context stack.
 func TestSectionsContext(t *testing.T) { 
     template := "\"{{#context}}Hi {{name}}.{{/context}}\""
-    data     := mustDecodeJson("{\"context\":{\"name\":\"Joe\"}}")
+    data     := map[string]interface {}{"context":map[string]interface {}{"name":"Joe"}}
     expected := "\"Hi Joe.\""
     actual   := Render(template, data)
 
@@ -1134,7 +1126,7 @@ func TestSectionsContext(t *testing.T) {
 // All elements on the context stack should be accessible.
 func TestSectionsDeeplyNestedContexts(t *testing.T) { 
     template := "{{#a}}\n{{one}}\n{{#b}}\n{{one}}{{two}}{{one}}\n{{#c}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{#d}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{#e}}\n{{one}}{{two}}{{three}}{{four}}{{five}}{{four}}{{three}}{{two}}{{one}}\n{{/e}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{/d}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{/c}}\n{{one}}{{two}}{{one}}\n{{/b}}\n{{one}}\n{{/a}}\n"
-    data     := mustDecodeJson("{\"a\":{\"one\":1},\"b\":{\"two\":2},\"c\":{\"three\":3},\"d\":{\"four\":4},\"e\":{\"five\":5}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{"one":1}, "b":map[string]interface {}{"two":2}, "c":map[string]interface {}{"three":3}, "d":map[string]interface {}{"four":4}, "e":map[string]interface {}{"five":5}}
     expected := "1\n121\n12321\n1234321\n123454321\n1234321\n12321\n121\n1\n"
     actual   := Render(template, data)
 
@@ -1146,7 +1138,7 @@ func TestSectionsDeeplyNestedContexts(t *testing.T) {
 // Lists should be iterated; list items should visit the context stack.
 func TestSectionsList(t *testing.T) { 
     template := "\"{{#list}}{{item}}{{/list}}\""
-    data     := mustDecodeJson("{\"list\":[{\"item\":1},{\"item\":2},{\"item\":3}]}")
+    data     := map[string]interface {}{"list":[]interface {}{map[string]interface {}{"item":1}, map[string]interface {}{"item":2}, map[string]interface {}{"item":3}}}
     expected := "\"123\""
     actual   := Render(template, data)
 
@@ -1158,7 +1150,7 @@ func TestSectionsList(t *testing.T) {
 // Empty lists should behave like falsey values.
 func TestSectionsEmptyList(t *testing.T) { 
     template := "\"{{#list}}Yay lists!{{/list}}\""
-    data     := mustDecodeJson("{\"list\":[]}")
+    data     := map[string]interface {}{"list":[]interface {}{}}
     expected := "\"\""
     actual   := Render(template, data)
 
@@ -1170,7 +1162,7 @@ func TestSectionsEmptyList(t *testing.T) {
 // Multiple sections per template should be permitted.
 func TestSectionsDoubled(t *testing.T) { 
     template := "{{#bool}}\n* first\n{{/bool}}\n* {{two}}\n{{#bool}}\n* third\n{{/bool}}\n"
-    data     := mustDecodeJson("{\"bool\":true,\"two\":\"second\"}")
+    data     := map[string]interface {}{"two":"second", "bool":true}
     expected := "* first\n* second\n* third\n"
     actual   := Render(template, data)
 
@@ -1182,7 +1174,7 @@ func TestSectionsDoubled(t *testing.T) {
 // Nested truthy sections should have their contents rendered.
 func TestSectionsNestedTruthy(t *testing.T) { 
     template := "| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |"
-    data     := mustDecodeJson("{\"bool\":true}")
+    data     := map[string]interface {}{"bool":true}
     expected := "| A B C D E |"
     actual   := Render(template, data)
 
@@ -1194,7 +1186,7 @@ func TestSectionsNestedTruthy(t *testing.T) {
 // Nested falsey sections should be omitted.
 func TestSectionsNestedFalsey(t *testing.T) { 
     template := "| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |"
-    data     := mustDecodeJson("{\"bool\":false}")
+    data     := map[string]interface {}{"bool":false}
     expected := "| A  E |"
     actual   := Render(template, data)
 
@@ -1217,7 +1209,7 @@ func TestSectionsContextMisses(t *testing.T) {
 // Implicit iterators should directly interpolate strings.
 func TestSectionsImplicitIteratorString(t *testing.T) { 
     template := "\"{{#list}}({{.}}){{/list}}\""
-    data     := mustDecodeJson("{\"list\":[\"a\",\"b\",\"c\",\"d\",\"e\"]}")
+    data     := map[string]interface {}{"list":[]interface {}{"a", "b", "c", "d", "e"}}
     expected := "\"(a)(b)(c)(d)(e)\""
     actual   := Render(template, data)
 
@@ -1229,7 +1221,7 @@ func TestSectionsImplicitIteratorString(t *testing.T) {
 // Implicit iterators should cast integers to strings and interpolate.
 func TestSectionsImplicitIteratorInteger(t *testing.T) { 
     template := "\"{{#list}}({{.}}){{/list}}\""
-    data     := mustDecodeJson("{\"list\":[1,2,3,4,5]}")
+    data     := map[string]interface {}{"list":[]interface {}{1, 2, 3, 4, 5}}
     expected := "\"(1)(2)(3)(4)(5)\""
     actual   := Render(template, data)
 
@@ -1241,7 +1233,7 @@ func TestSectionsImplicitIteratorInteger(t *testing.T) {
 // Implicit iterators should cast decimals to strings and interpolate.
 func TestSectionsImplicitIteratorDecimal(t *testing.T) { 
     template := "\"{{#list}}({{.}}){{/list}}\""
-    data     := mustDecodeJson("{\"list\":[1.1,2.2,3.3,4.4,5.5]}")
+    data     := map[string]interface {}{"list":[]interface {}{1.1, 2.2, 3.3, 4.4, 5.5}}
     expected := "\"(1.1)(2.2)(3.3)(4.4)(5.5)\""
     actual   := Render(template, data)
 
@@ -1253,7 +1245,7 @@ func TestSectionsImplicitIteratorDecimal(t *testing.T) {
 // Dotted names should be valid for Section tags.
 func TestSectionsDottedNamesTruthy(t *testing.T) { 
     template := "\"{{#a.b.c}}Here{{/a.b.c}}\" == \"Here\""
-    data     := mustDecodeJson("{\"a\":{\"b\":{\"c\":true}}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":true}}}
     expected := "\"Here\" == \"Here\""
     actual   := Render(template, data)
 
@@ -1265,7 +1257,7 @@ func TestSectionsDottedNamesTruthy(t *testing.T) {
 // Dotted names should be valid for Section tags.
 func TestSectionsDottedNamesFalsey(t *testing.T) { 
     template := "\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\""
-    data     := mustDecodeJson("{\"a\":{\"b\":{\"c\":false}}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":false}}}
     expected := "\"\" == \"\""
     actual   := Render(template, data)
 
@@ -1277,7 +1269,7 @@ func TestSectionsDottedNamesFalsey(t *testing.T) {
 // Dotted names that cannot be resolved should be considered falsey.
 func TestSectionsDottedNamesBrokenChains(t *testing.T) { 
     template := "\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\""
-    data     := mustDecodeJson("{\"a\":{}}")
+    data     := map[string]interface {}{"a":map[string]interface {}{}}
     expected := "\"\" == \"\""
     actual   := Render(template, data)
 
@@ -1289,7 +1281,7 @@ func TestSectionsDottedNamesBrokenChains(t *testing.T) {
 // Sections should not alter surrounding whitespace.
 func TestSectionsSurroundingWhitespace(t *testing.T) { 
     template := " | {{#boolean}}\t|\t{{/boolean}} | \n"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := " | \t|\t | \n"
     actual   := Render(template, data)
 
@@ -1301,7 +1293,7 @@ func TestSectionsSurroundingWhitespace(t *testing.T) {
 // Sections should not alter internal whitespace.
 func TestSectionsInternalWhitespace(t *testing.T) { 
     template := " | {{#boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := " |  \n  | \n"
     actual   := Render(template, data)
 
@@ -1313,7 +1305,7 @@ func TestSectionsInternalWhitespace(t *testing.T) {
 // Single-line sections should not alter surrounding whitespace.
 func TestSectionsIndentedInlineSections(t *testing.T) { 
     template := " {{#boolean}}YES{{/boolean}}\n {{#boolean}}GOOD{{/boolean}}\n"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := " YES\n GOOD\n"
     actual   := Render(template, data)
 
@@ -1325,7 +1317,7 @@ func TestSectionsIndentedInlineSections(t *testing.T) {
 // Standalone lines should be removed from the template.
 func TestSectionsStandaloneLines(t *testing.T) { 
     template := "| This Is\n{{#boolean}}\n|\n{{/boolean}}\n| A Line\n"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := "| This Is\n|\n| A Line\n"
     actual   := Render(template, data)
 
@@ -1337,7 +1329,7 @@ func TestSectionsStandaloneLines(t *testing.T) {
 // Indented standalone lines should be removed from the template.
 func TestSectionsIndentedStandaloneLines(t *testing.T) { 
     template := "| This Is\n  {{#boolean}}\n|\n  {{/boolean}}\n| A Line\n"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := "| This Is\n|\n| A Line\n"
     actual   := Render(template, data)
 
@@ -1349,7 +1341,7 @@ func TestSectionsIndentedStandaloneLines(t *testing.T) {
 // "\r\n" should be considered a newline for standalone tags.
 func TestSectionsStandaloneLineEndings(t *testing.T) { 
     template := "|\r\n{{#boolean}}\r\n{{/boolean}}\r\n|"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := "|\r\n|"
     actual   := Render(template, data)
 
@@ -1361,7 +1353,7 @@ func TestSectionsStandaloneLineEndings(t *testing.T) {
 // Standalone tags should not require a newline to precede them.
 func TestSectionsStandaloneWithoutPreviousLine(t *testing.T) { 
     template := "  {{#boolean}}\n#{{/boolean}}\n/"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := "#\n/"
     actual   := Render(template, data)
 
@@ -1373,7 +1365,7 @@ func TestSectionsStandaloneWithoutPreviousLine(t *testing.T) {
 // Standalone tags should not require a newline to follow them.
 func TestSectionsStandaloneWithoutNewline(t *testing.T) { 
     template := "#{{#boolean}}\n/\n  {{/boolean}}"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := "#\n/\n"
     actual   := Render(template, data)
 
@@ -1385,7 +1377,7 @@ func TestSectionsStandaloneWithoutNewline(t *testing.T) {
 // Superfluous in-tag whitespace should be ignored.
 func TestSectionsPadding(t *testing.T) { 
     template := "|{{# boolean }}={{/ boolean }}|"
-    data     := mustDecodeJson("{\"boolean\":true}")
+    data     := map[string]interface {}{"boolean":true}
     expected := "|=|"
     actual   := Render(template, data)
 
