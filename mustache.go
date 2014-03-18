@@ -295,10 +295,7 @@ func (tmpl *Template) parse() error {
             return parseError{tmpl.curline, "unmatched close tag"}
         case '>':
             name := strings.TrimSpace(tag[1:])
-            partial, err := tmpl.parsePartial(name)
-            if err != nil {
-                return err
-            }
+            partial := &partialElement{tmpl, name}
             tmpl.elems = append(tmpl.elems, partial)
         case '=':
             if tag[len(tag)-1] != '=' {
@@ -533,8 +530,10 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
     case *sectionElement:
         renderSection(elem, contextChain, buf)
     case *partialElement:
-        child, _ := elem.tmpl.parsePartial(elem.name)
-        child.renderTemplate(contextChain, buf)
+        child, err := elem.tmpl.parsePartial(elem.name)
+        if err == nil {
+            child.renderTemplate(contextChain, buf)
+        }
     case *Template:
         elem.renderTemplate(contextChain, buf)
     }
