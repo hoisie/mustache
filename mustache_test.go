@@ -1,254 +1,1387 @@
 package mustache
 
 import (
-    "os"
-    "path"
-    "strings"
     "testing"
+    "io/ioutil"
+    "os"
 )
 
-type Test struct {
-    tmpl     string
-    context  interface{}
-    expected string
-}
 
-type Data struct {
-    A   bool
-    B   string
-}
 
-type User struct {
-    Name string
-    Id   int64
-}
 
-type settings struct {
-    Allow bool
-}
 
-func (u User) Func1() string {
-    return u.Name
-}
+// -----------------------------------------------------------------------------
 
-func (u *User) Func2() string {
-    return u.Name
-}
+// Comment blocks should be removed from the template.
+func TestCommentsInline(t *testing.T) { 
+    template := "12345{{! Comment Block! }}67890"
+    expected := "1234567890"
+    actual   := Render(template)
 
-func (u *User) Func3() (map[string]string, error) {
-    return map[string]string{"name": u.Name}, nil
-}
-
-func (u *User) Func4() (map[string]string, error) {
-    return nil, nil
-}
-
-func (u *User) Func5() (*settings, error) {
-    return &settings{true}, nil
-}
-
-func (u *User) Func6() ([]interface{}, error) {
-    var v []interface{}
-    v = append(v, &settings{true})
-    return v, nil
-}
-
-func (u User) Truefunc1() bool {
-    return true
-}
-
-func (u *User) Truefunc2() bool {
-    return true
-}
-
-func makeVector(n int) []interface{} {
-    var v []interface{}
-    for i := 0; i < n; i++ {
-        v = append(v, &User{"Mike", 1})
-    }
-    return v
-}
-
-type Category struct {
-    Tag         string
-    Description string
-}
-
-func (c Category) DisplayName() string {
-    return c.Tag + " - " + c.Description
-}
-
-var tests = []Test{
-    {`hello world`, nil, "hello world"},
-    {`hello {{name}}`, map[string]string{"name": "world"}, "hello world"},
-    {`{{var}}`, map[string]string{"var": "5 > 2"}, "5 &gt; 2"},
-    {`{{{var}}}`, map[string]string{"var": "5 > 2"}, "5 > 2"},
-    {`{{a}}{{b}}{{c}}{{d}}`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "abcd"},
-    {`0{{a}}1{{b}}23{{c}}456{{d}}89`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "0a1b23c456d89"},
-    {`hello {{! comment }}world`, map[string]string{}, "hello world"},
-    {`{{ a }}{{=<% %>=}}<%b %><%={{ }}=%>{{ c }}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
-    {`{{ a }}{{= <% %> =}}<%b %><%= {{ }}=%>{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
-
-    //does not exist
-    {`{{dne}}`, map[string]string{"name": "world"}, ""},
-    {`{{dne}}`, User{"Mike", 1}, ""},
-    {`{{dne}}`, &User{"Mike", 1}, ""},
-    {`{{#has}}{{/has}}`, &User{"Mike", 1}, ""},
-
-    //section tests
-    {`{{#A}}{{B}}{{/A}}`, Data{true, "hello"}, "hello"},
-    {`{{#A}}{{{B}}}{{/A}}`, Data{true, "5 > 2"}, "5 > 2"},
-    {`{{#A}}{{B}}{{/A}}`, Data{true, "5 > 2"}, "5 &gt; 2"},
-    {`{{#A}}{{B}}{{/A}}`, Data{false, "hello"}, ""},
-    {`{{a}}{{#b}}{{b}}{{/b}}{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc"},
-    {`{{#A}}{{B}}{{/A}}`, struct {
-        A []struct {
-            B string
-        }
-    }{[]struct {
-        B string
-    }{{"a"}, {"b"}, {"c"}}},
-        "abc",
-    },
-    {`{{#A}}{{b}}{{/A}}`, struct{ A []map[string]string }{[]map[string]string{{"b": "a"}, {"b": "b"}, {"b": "c"}}}, "abc"},
-
-    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
-
-    {`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": nil}, ""},
-    {`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": (*User)(nil)}, ""},
-    {`{{#users}}gone{{Name}}{{/users}}`, map[string]interface{}{"users": []User{}}, ""},
-
-    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []*User{{"Mike", 1}}}, "Mike"},
-    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": []interface{}{&User{"Mike", 12}}}, "Mike"},
-    {`{{#users}}{{Name}}{{/users}}`, map[string]interface{}{"users": makeVector(1)}, "Mike"},
-    {`{{Name}}`, User{"Mike", 1}, "Mike"},
-    {`{{Name}}`, &User{"Mike", 1}, "Mike"},
-    {"{{#users}}\n{{Name}}\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\nMike\n"},
-    {"{{#users}}\r\n{{Name}}\r\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\r\nMike\r\n"},
-
-    // implicit iterator tests
-    {`"{{#list}}({{.}}){{/list}}"`, map[string]interface{}{"list": []string{"a", "b", "c", "d", "e"}}, "\"(a)(b)(c)(d)(e)\""},
-    {`"{{#list}}({{.}}){{/list}}"`, map[string]interface{}{"list": []int{1, 2, 3, 4, 5}}, "\"(1)(2)(3)(4)(5)\""},
-    {`"{{#list}}({{.}}){{/list}}"`, map[string]interface{}{"list": []float64{1.10, 2.20, 3.30, 4.40, 5.50}}, "\"(1.1)(2.2)(3.3)(4.4)(5.5)\""},
-
-    //inverted section tests
-    {`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc"},
-    {`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]interface{}{"a": "a", "b": false, "c": "c"}, "abc"},
-    {`{{^a}}b{{/a}}`, map[string]interface{}{"a": false}, "b"},
-    {`{{^a}}b{{/a}}`, map[string]interface{}{"a": true}, ""},
-    {`{{^a}}b{{/a}}`, map[string]interface{}{"a": "nonempty string"}, ""},
-    {`{{^a}}b{{/a}}`, map[string]interface{}{"a": []string{}}, "b"},
-
-    //function tests
-    {`{{#users}}{{Func1}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike"},
-    {`{{#users}}{{Func1}}{{/users}}`, map[string]interface{}{"users": []*User{{"Mike", 1}}}, "Mike"},
-    {`{{#users}}{{Func2}}{{/users}}`, map[string]interface{}{"users": []*User{{"Mike", 1}}}, "Mike"},
-
-    {`{{#users}}{{#Func3}}{{name}}{{/Func3}}{{/users}}`, map[string]interface{}{"users": []*User{{"Mike", 1}}}, "Mike"},
-    {`{{#users}}{{#Func4}}{{name}}{{/Func4}}{{/users}}`, map[string]interface{}{"users": []*User{{"Mike", 1}}}, ""},
-    {`{{#Truefunc1}}abcd{{/Truefunc1}}`, User{"Mike", 1}, "abcd"},
-    {`{{#Truefunc1}}abcd{{/Truefunc1}}`, &User{"Mike", 1}, "abcd"},
-    {`{{#Truefunc2}}abcd{{/Truefunc2}}`, &User{"Mike", 1}, "abcd"},
-    {`{{#Func5}}{{#Allow}}abcd{{/Allow}}{{/Func5}}`, &User{"Mike", 1}, "abcd"},
-    {`{{#user}}{{#Func5}}{{#Allow}}abcd{{/Allow}}{{/Func5}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
-    {`{{#user}}{{#Func6}}{{#Allow}}abcd{{/Allow}}{{/Func6}}{{/user}}`, map[string]interface{}{"user": &User{"Mike", 1}}, "abcd"},
-
-    //context chaining
-    {`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"section": map[string]string{"name": "world"}}, "hello world"},
-    {`hello {{#section}}{{name}}{{/section}}`, map[string]interface{}{"name": "bob", "section": map[string]string{"name": "world"}}, "hello world"},
-    {`hello {{#bool}}{{#section}}{{name}}{{/section}}{{/bool}}`, map[string]interface{}{"bool": true, "section": map[string]string{"name": "world"}}, "hello world"},
-    {`{{#users}}{{canvas}}{{/users}}`, map[string]interface{}{"canvas": "hello", "users": []User{{"Mike", 1}}}, "hello"},
-    {`{{#categories}}{{DisplayName}}{{/categories}}`, map[string][]*Category{
-        "categories": {&Category{"a", "b"}},
-    }, "a - b"},
-
-    //invalid syntax - https://github.com/hoisie/mustache/issues/10
-    {`{{#a}}{{#b}}{{/a}}{{/b}}}`, map[string]interface{}{}, "line 1: interleaved closing tag: a"},
-}
-
-func TestBasic(t *testing.T) {
-    for _, test := range tests {
-        output := Render(test.tmpl, test.context)
-        if output != test.expected {
-            t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
-        }
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
     }
 }
 
-func TestFile(t *testing.T) {
-    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test1.mustache")
-    expected := "hello world"
-    output := RenderFile(filename, map[string]string{"name": "world"})
-    if output != expected {
-        t.Fatalf("testfile expected %q got %q", expected, output)
+// Multiline comments should be permitted.
+func TestCommentsMultiline(t *testing.T) { 
+    template := "12345{{!\n  This is a\n  multi-line comment...\n}}67890\n"
+    expected := "1234567890\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
     }
 }
 
-func TestPartial(t *testing.T) {
-    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test2.mustache")
-    println(filename)
-    expected := "hello world"
-    output := RenderFile(filename, map[string]string{"Name": "world"})
-    if output != expected {
-        t.Fatalf("testpartial expected %q got %q", expected, output)
+// All standalone comment lines should be removed.
+func TestCommentsStandalone(t *testing.T) { 
+    template := "Begin.\n{{! Comment Block! }}\nEnd.\n"
+    expected := "Begin.\nEnd.\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
     }
 }
 
-/*
-func TestSectionPartial(t *testing.T) {
-    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test3.mustache")
-    expected := "Mike\nJoe\n"
-    context := map[string]interface{}{"users": []User{{"Mike", 1}, {"Joe", 2}}}
-    output := RenderFile(filename, context)
-    if output != expected {
-        t.Fatalf("testSectionPartial expected %q got %q", expected, output)
-    }
-}
-*/
-func TestMultiContext(t *testing.T) {
-    output := Render(`{{hello}} {{World}}`, map[string]string{"hello": "hello"}, struct{ World string }{"world"})
-    output2 := Render(`{{hello}} {{World}}`, struct{ World string }{"world"}, map[string]string{"hello": "hello"})
-    if output != "hello world" || output2 != "hello world" {
-        t.Fatalf("TestMultiContext expected %q got %q", "hello world", output)
+// All standalone comment lines should be removed.
+func TestCommentsIndentedStandalone(t *testing.T) { 
+    template := "Begin.\n  {{! Indented Comment Block! }}\nEnd.\n"
+    expected := "Begin.\nEnd.\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
     }
 }
 
-var malformed = []Test{
-    {`{{#a}}{{}}{{/a}}`, Data{true, "hello"}, "empty tag"},
-    {`{{}}`, nil, "empty tag"},
-    {`{{}`, nil, "unmatched open tag"},
-    {`{{`, nil, "unmatched open tag"},
-}
+// "\r\n" should be considered a newline for standalone tags.
+func TestCommentsStandaloneLineEndings(t *testing.T) { 
+    template := "|\r\n{{! Standalone Comment }}\r\n|"
+    expected := "|\r\n|"
+    actual   := Render(template)
 
-func TestMalformed(t *testing.T) {
-    for _, test := range malformed {
-        output := Render(test.tmpl, test.context)
-        if strings.Index(output, test.expected) == -1 {
-            t.Fatalf("%q expected %q in error %q", test.tmpl, test.expected, output)
-        }
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
     }
 }
 
-type LayoutTest struct {
-    layout   string
-    tmpl     string
-    context  interface{}
-    expected string
+// Standalone tags should not require a newline to precede them.
+func TestCommentsStandaloneWithoutPreviousLine(t *testing.T) { 
+    template := "  {{! I'm Still Standalone }}\n!"
+    expected := "!"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
 }
 
-var layoutTests = []LayoutTest{
-    {`Header {{content}} Footer`, `Hello World`, nil, `Header Hello World Footer`},
-    {`Header {{content}} Footer`, `Hello {{s}}`, map[string]string{"s": "World"}, `Header Hello World Footer`},
-    {`Header {{content}} Footer`, `Hello {{content}}`, map[string]string{"content": "World"}, `Header Hello World Footer`},
-    {`Header {{extra}} {{content}} Footer`, `Hello {{content}}`, map[string]string{"content": "World", "extra": "extra"}, `Header extra Hello World Footer`},
-    {`Header {{content}} {{content}} Footer`, `Hello {{content}}`, map[string]string{"content": "World"}, `Header Hello World Hello World Footer`},
+// Standalone tags should not require a newline to follow them.
+func TestCommentsStandaloneWithoutNewline(t *testing.T) { 
+    template := "!\n  {{! I'm Still Standalone }}"
+    expected := "!\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
 }
 
-func TestLayout(t *testing.T) {
-    for _, test := range layoutTests {
-        output := RenderInLayout(test.tmpl, test.layout, test.context)
-        if output != test.expected {
-            t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
-        }
+// All standalone comment lines should be removed.
+func TestCommentsMultilineStandalone(t *testing.T) { 
+    template := "Begin.\n{{!\nSomething's going on here...\n}}\nEnd.\n"
+    expected := "Begin.\nEnd.\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// All standalone comment lines should be removed.
+func TestCommentsIndentedMultilineStandalone(t *testing.T) { 
+    template := "Begin.\n  {{!\n    Something's going on here...\n  }}\nEnd.\n"
+    expected := "Begin.\nEnd.\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Inline comments should not strip whitespace
+func TestCommentsIndentedInline(t *testing.T) { 
+    template := "  12 {{! 34 }}\n"
+    expected := "  12 \n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Comment removal should preserve surrounding whitespace.
+func TestCommentsSurroundingWhitespace(t *testing.T) { 
+    template := "12345 {{! Comment Block! }} 67890"
+    expected := "12345  67890"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+
+
+
+// -----------------------------------------------------------------------------
+
+// The equals sign (used on both sides) should permit delimiter changes.
+func TestDelimitersPairBehavior(t *testing.T) { 
+    template := "{{=<% %>=}}(<%text%>)"
+    data     := map[string]interface {}{"text":"Hey!"}
+    expected := "(Hey!)"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Characters with special meaning regexen should be valid delimiters.
+func TestDelimitersSpecialCharacters(t *testing.T) { 
+    template := "({{=[ ]=}}[text])"
+    data     := map[string]interface {}{"text":"It worked!"}
+    expected := "(It worked!)"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Delimiters set outside sections should persist.
+func TestDelimitersSections(t *testing.T) { 
+    template := "[\n{{#section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|#section|\n  {{data}}\n  |data|\n|/section|\n]\n"
+    data     := map[string]interface {}{"section":true, "data":"I got interpolated."}
+    expected := "[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Delimiters set outside inverted sections should persist.
+func TestDelimitersInvertedSections(t *testing.T) { 
+    template := "[\n{{^section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|^section|\n  {{data}}\n  |data|\n|/section|\n]\n"
+    data     := map[string]interface {}{"section":false, "data":"I got interpolated."}
+    expected := "[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Delimiters set in a parent template should not affect a partial.
+func TestDelimitersPartialInheritence(t *testing.T) { 
+    ioutil.WriteFile("include", []byte(".{{value}}."), 0666)
+    defer os.Remove("include")
+    
+    template := "[ {{>include}} ]\n{{= | | =}}\n[ |>include| ]\n"
+    data     := map[string]interface {}{"value":"yes"}
+    expected := "[ .yes. ]\n[ .yes. ]\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Delimiters set in a partial should not affect the parent template.
+func TestDelimitersPostPartialBehavior(t *testing.T) { 
+    ioutil.WriteFile("include", []byte(".{{value}}. {{= | | =}} .|value|."), 0666)
+    defer os.Remove("include")
+    
+    template := "[ {{>include}} ]\n[ .{{value}}.  .|value|. ]\n"
+    data     := map[string]interface {}{"value":"yes"}
+    expected := "[ .yes.  .yes. ]\n[ .yes.  .|value|. ]\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Surrounding whitespace should be left untouched.
+func TestDelimitersSurroundingWhitespace(t *testing.T) { 
+    template := "| {{=@ @=}} |"
+    expected := "|  |"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Whitespace should be left untouched.
+func TestDelimitersOutlyingWhitespaceInline(t *testing.T) { 
+    template := " | {{=@ @=}}\n"
+    expected := " | \n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone lines should be removed from the template.
+func TestDelimitersStandaloneTag(t *testing.T) { 
+    template := "Begin.\n{{=@ @=}}\nEnd.\n"
+    expected := "Begin.\nEnd.\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Indented standalone lines should be removed from the template.
+func TestDelimitersIndentedStandaloneTag(t *testing.T) { 
+    template := "Begin.\n  {{=@ @=}}\nEnd.\n"
+    expected := "Begin.\nEnd.\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// "\r\n" should be considered a newline for standalone tags.
+func TestDelimitersStandaloneLineEndings(t *testing.T) { 
+    template := "|\r\n{{= @ @ =}}\r\n|"
+    expected := "|\r\n|"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone tags should not require a newline to precede them.
+func TestDelimitersStandaloneWithoutPreviousLine(t *testing.T) { 
+    template := "  {{=@ @=}}\n="
+    expected := "="
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone tags should not require a newline to follow them.
+func TestDelimitersStandaloneWithoutNewline(t *testing.T) { 
+    template := "=\n  {{=@ @=}}"
+    expected := "=\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Superfluous in-tag whitespace should be ignored.
+func TestDelimitersPairwithPadding(t *testing.T) { 
+    template := "|{{= @   @ =}}|"
+    expected := "||"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+
+
+
+// -----------------------------------------------------------------------------
+
+// Mustache-free templates should render as-is.
+func TestInterpolationNoInterpolation(t *testing.T) { 
+    template := "Hello from {Mustache}!\n"
+    expected := "Hello from {Mustache}!\n"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Unadorned tags should interpolate content into the template.
+func TestInterpolationBasicInterpolation(t *testing.T) { 
+    template := "Hello, {{subject}}!\n"
+    data     := map[string]interface {}{"subject":"world"}
+    expected := "Hello, world!\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Basic interpolation should be HTML escaped.
+func TestInterpolationHTMLEscaping(t *testing.T) { 
+    template := "These characters should be HTML escaped: {{forbidden}}\n"
+    data     := map[string]interface {}{"forbidden":"& \" < >"}
+    expected := "These characters should be HTML escaped: &amp; &quot; &lt; &gt;\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Triple mustaches should interpolate without HTML escaping.
+func TestInterpolationTripleMustache(t *testing.T) { 
+    template := "These characters should not be HTML escaped: {{{forbidden}}}\n"
+    data     := map[string]interface {}{"forbidden":"& \" < >"}
+    expected := "These characters should not be HTML escaped: & \" < >\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Ampersand should interpolate without HTML escaping.
+func TestInterpolationAmpersand(t *testing.T) { 
+    template := "These characters should not be HTML escaped: {{&forbidden}}\n"
+    data     := map[string]interface {}{"forbidden":"& \" < >"}
+    expected := "These characters should not be HTML escaped: & \" < >\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Integers should interpolate seamlessly.
+func TestInterpolationBasicIntegerInterpolation(t *testing.T) { 
+    template := "\"{{mph}} miles an hour!\""
+    data     := map[string]interface {}{"mph":85}
+    expected := "\"85 miles an hour!\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Integers should interpolate seamlessly.
+func TestInterpolationTripleMustacheIntegerInterpolation(t *testing.T) { 
+    template := "\"{{{mph}}} miles an hour!\""
+    data     := map[string]interface {}{"mph":85}
+    expected := "\"85 miles an hour!\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Integers should interpolate seamlessly.
+func TestInterpolationAmpersandIntegerInterpolation(t *testing.T) { 
+    template := "\"{{&mph}} miles an hour!\""
+    data     := map[string]interface {}{"mph":85}
+    expected := "\"85 miles an hour!\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Decimals should interpolate seamlessly with proper significance.
+func TestInterpolationBasicDecimalInterpolation(t *testing.T) { 
+    template := "\"{{power}} jiggawatts!\""
+    data     := map[string]interface {}{"power":1.21}
+    expected := "\"1.21 jiggawatts!\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Decimals should interpolate seamlessly with proper significance.
+func TestInterpolationTripleMustacheDecimalInterpolation(t *testing.T) { 
+    template := "\"{{{power}}} jiggawatts!\""
+    data     := map[string]interface {}{"power":1.21}
+    expected := "\"1.21 jiggawatts!\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Decimals should interpolate seamlessly with proper significance.
+func TestInterpolationAmpersandDecimalInterpolation(t *testing.T) { 
+    template := "\"{{&power}} jiggawatts!\""
+    data     := map[string]interface {}{"power":1.21}
+    expected := "\"1.21 jiggawatts!\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Failed context lookups should default to empty strings.
+func TestInterpolationBasicContextMissInterpolation(t *testing.T) { 
+    template := "I ({{cannot}}) be seen!"
+    expected := "I () be seen!"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Failed context lookups should default to empty strings.
+func TestInterpolationTripleMustacheContextMissInterpolation(t *testing.T) { 
+    template := "I ({{{cannot}}}) be seen!"
+    expected := "I () be seen!"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Failed context lookups should default to empty strings.
+func TestInterpolationAmpersandContextMissInterpolation(t *testing.T) { 
+    template := "I ({{&cannot}}) be seen!"
+    expected := "I () be seen!"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names should be considered a form of shorthand for sections.
+func TestInterpolationDottedNamesBasicInterpolation(t *testing.T) { 
+    template := "\"{{person.name}}\" == \"{{#person}}{{name}}{{/person}}\""
+    data     := map[string]interface {}{"person":map[string]interface {}{"name":"Joe"}}
+    expected := "\"Joe\" == \"Joe\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names should be considered a form of shorthand for sections.
+func TestInterpolationDottedNamesTripleMustacheInterpolation(t *testing.T) { 
+    template := "\"{{{person.name}}}\" == \"{{#person}}{{{name}}}{{/person}}\""
+    data     := map[string]interface {}{"person":map[string]interface {}{"name":"Joe"}}
+    expected := "\"Joe\" == \"Joe\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names should be considered a form of shorthand for sections.
+func TestInterpolationDottedNamesAmpersandInterpolation(t *testing.T) { 
+    template := "\"{{&person.name}}\" == \"{{#person}}{{&name}}{{/person}}\""
+    data     := map[string]interface {}{"person":map[string]interface {}{"name":"Joe"}}
+    expected := "\"Joe\" == \"Joe\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names should be functional to any level of nesting.
+func TestInterpolationDottedNamesArbitraryDepth(t *testing.T) { 
+    template := "\"{{a.b.c.d.e.name}}\" == \"Phil\""
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":map[string]interface {}{"d":map[string]interface {}{"e":map[string]interface {}{"name":"Phil"}}}}}}
+    expected := "\"Phil\" == \"Phil\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Any falsey value prior to the last part of the name should yield ''.
+func TestInterpolationDottedNamesBrokenChains(t *testing.T) { 
+    template := "\"{{a.b.c}}\" == \"\""
+    data     := map[string]interface {}{"a":map[string]interface {}{}}
+    expected := "\"\" == \"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Each part of a dotted name should resolve only against its parent.
+func TestInterpolationDottedNamesBrokenChainResolution(t *testing.T) { 
+    template := "\"{{a.b.c.name}}\" == \"\""
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{}}, "c":map[string]interface {}{"name":"Jim"}}
+    expected := "\"\" == \"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// The first part of a dotted name should resolve as any other name.
+func TestInterpolationDottedNamesInitialResolution(t *testing.T) { 
+    template := "\"{{#a}}{{b.c.d.e.name}}{{/a}}\" == \"Phil\""
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":map[string]interface {}{"d":map[string]interface {}{"e":map[string]interface {}{"name":"Phil"}}}}}, "b":map[string]interface {}{"c":map[string]interface {}{"d":map[string]interface {}{"e":map[string]interface {}{"name":"Wrong"}}}}}
+    expected := "\"Phil\" == \"Phil\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Interpolation should not alter surrounding whitespace.
+func TestInterpolationInterpolationSurroundingWhitespace(t *testing.T) { 
+    template := "| {{string}} |"
+    data     := map[string]interface {}{"string":"---"}
+    expected := "| --- |"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Interpolation should not alter surrounding whitespace.
+func TestInterpolationTripleMustacheSurroundingWhitespace(t *testing.T) { 
+    template := "| {{{string}}} |"
+    data     := map[string]interface {}{"string":"---"}
+    expected := "| --- |"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Interpolation should not alter surrounding whitespace.
+func TestInterpolationAmpersandSurroundingWhitespace(t *testing.T) { 
+    template := "| {{&string}} |"
+    data     := map[string]interface {}{"string":"---"}
+    expected := "| --- |"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone interpolation should not alter surrounding whitespace.
+func TestInterpolationInterpolationStandalone(t *testing.T) { 
+    template := "  {{string}}\n"
+    data     := map[string]interface {}{"string":"---"}
+    expected := "  ---\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone interpolation should not alter surrounding whitespace.
+func TestInterpolationTripleMustacheStandalone(t *testing.T) { 
+    template := "  {{{string}}}\n"
+    data     := map[string]interface {}{"string":"---"}
+    expected := "  ---\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone interpolation should not alter surrounding whitespace.
+func TestInterpolationAmpersandStandalone(t *testing.T) { 
+    template := "  {{&string}}\n"
+    data     := map[string]interface {}{"string":"---"}
+    expected := "  ---\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Superfluous in-tag whitespace should be ignored.
+func TestInterpolationInterpolationWithPadding(t *testing.T) { 
+    template := "|{{ string }}|"
+    data     := map[string]interface {}{"string":"---"}
+    expected := "|---|"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Superfluous in-tag whitespace should be ignored.
+func TestInterpolationTripleMustacheWithPadding(t *testing.T) { 
+    template := "|{{{ string }}}|"
+    data     := map[string]interface {}{"string":"---"}
+    expected := "|---|"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Superfluous in-tag whitespace should be ignored.
+func TestInterpolationAmpersandWithPadding(t *testing.T) { 
+    template := "|{{& string }}|"
+    data     := map[string]interface {}{"string":"---"}
+    expected := "|---|"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+
+
+
+// -----------------------------------------------------------------------------
+
+// Falsey sections should have their contents rendered.
+func TestInvertedFalsey(t *testing.T) { 
+    template := "\"{{^boolean}}This should be rendered.{{/boolean}}\""
+    data     := map[string]interface {}{"boolean":false}
+    expected := "\"This should be rendered.\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Truthy sections should have their contents omitted.
+func TestInvertedTruthy(t *testing.T) { 
+    template := "\"{{^boolean}}This should not be rendered.{{/boolean}}\""
+    data     := map[string]interface {}{"boolean":true}
+    expected := "\"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Objects and hashes should behave like truthy values.
+func TestInvertedContext(t *testing.T) { 
+    template := "\"{{^context}}Hi {{name}}.{{/context}}\""
+    data     := map[string]interface {}{"context":map[string]interface {}{"name":"Joe"}}
+    expected := "\"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Lists should behave like truthy values.
+func TestInvertedList(t *testing.T) { 
+    template := "\"{{^list}}{{n}}{{/list}}\""
+    data     := map[string]interface {}{"list":[]interface {}{map[string]interface {}{"n":1}, map[string]interface {}{"n":2}, map[string]interface {}{"n":3}}}
+    expected := "\"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Empty lists should behave like falsey values.
+func TestInvertedEmptyList(t *testing.T) { 
+    template := "\"{{^list}}Yay lists!{{/list}}\""
+    data     := map[string]interface {}{"list":[]interface {}{}}
+    expected := "\"Yay lists!\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Multiple inverted sections per template should be permitted.
+func TestInvertedDoubled(t *testing.T) { 
+    template := "{{^bool}}\n* first\n{{/bool}}\n* {{two}}\n{{^bool}}\n* third\n{{/bool}}\n"
+    data     := map[string]interface {}{"two":"second", "bool":false}
+    expected := "* first\n* second\n* third\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Nested falsey sections should have their contents rendered.
+func TestInvertedNestedFalsey(t *testing.T) { 
+    template := "| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |"
+    data     := map[string]interface {}{"bool":false}
+    expected := "| A B C D E |"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Nested truthy sections should be omitted.
+func TestInvertedNestedTruthy(t *testing.T) { 
+    template := "| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |"
+    data     := map[string]interface {}{"bool":true}
+    expected := "| A  E |"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Failed context lookups should be considered falsey.
+func TestInvertedContextMisses(t *testing.T) { 
+    template := "[{{^missing}}Cannot find key 'missing'!{{/missing}}]"
+    expected := "[Cannot find key 'missing'!]"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names should be valid for Inverted Section tags.
+func TestInvertedDottedNamesTruthy(t *testing.T) { 
+    template := "\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"\""
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":true}}}
+    expected := "\"\" == \"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names should be valid for Inverted Section tags.
+func TestInvertedDottedNamesFalsey(t *testing.T) { 
+    template := "\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\""
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":false}}}
+    expected := "\"Not Here\" == \"Not Here\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names that cannot be resolved should be considered falsey.
+func TestInvertedDottedNamesBrokenChains(t *testing.T) { 
+    template := "\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\""
+    data     := map[string]interface {}{"a":map[string]interface {}{}}
+    expected := "\"Not Here\" == \"Not Here\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Inverted sections should not alter surrounding whitespace.
+func TestInvertedSurroundingWhitespace(t *testing.T) { 
+    template := " | {{^boolean}}\t|\t{{/boolean}} | \n"
+    data     := map[string]interface {}{"boolean":false}
+    expected := " | \t|\t | \n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Inverted should not alter internal whitespace.
+func TestInvertedInternalWhitespace(t *testing.T) { 
+    template := " | {{^boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n"
+    data     := map[string]interface {}{"boolean":false}
+    expected := " |  \n  | \n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Single-line sections should not alter surrounding whitespace.
+func TestInvertedIndentedInlineSections(t *testing.T) { 
+    template := " {{^boolean}}NO{{/boolean}}\n {{^boolean}}WAY{{/boolean}}\n"
+    data     := map[string]interface {}{"boolean":false}
+    expected := " NO\n WAY\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone lines should be removed from the template.
+func TestInvertedStandaloneLines(t *testing.T) { 
+    template := "| This Is\n{{^boolean}}\n|\n{{/boolean}}\n| A Line\n"
+    data     := map[string]interface {}{"boolean":false}
+    expected := "| This Is\n|\n| A Line\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone indented lines should be removed from the template.
+func TestInvertedStandaloneIndentedLines(t *testing.T) { 
+    template := "| This Is\n  {{^boolean}}\n|\n  {{/boolean}}\n| A Line\n"
+    data     := map[string]interface {}{"boolean":false}
+    expected := "| This Is\n|\n| A Line\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// "\r\n" should be considered a newline for standalone tags.
+func TestInvertedStandaloneLineEndings(t *testing.T) { 
+    template := "|\r\n{{^boolean}}\r\n{{/boolean}}\r\n|"
+    data     := map[string]interface {}{"boolean":false}
+    expected := "|\r\n|"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone tags should not require a newline to precede them.
+func TestInvertedStandaloneWithoutPreviousLine(t *testing.T) { 
+    template := "  {{^boolean}}\n^{{/boolean}}\n/"
+    data     := map[string]interface {}{"boolean":false}
+    expected := "^\n/"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone tags should not require a newline to follow them.
+func TestInvertedStandaloneWithoutNewline(t *testing.T) { 
+    template := "^{{^boolean}}\n/\n  {{/boolean}}"
+    data     := map[string]interface {}{"boolean":false}
+    expected := "^\n/\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Superfluous in-tag whitespace should be ignored.
+func TestInvertedPadding(t *testing.T) { 
+    template := "|{{^ boolean }}={{/ boolean }}|"
+    data     := map[string]interface {}{"boolean":false}
+    expected := "|=|"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+
+
+
+// -----------------------------------------------------------------------------
+
+// The greater-than operator should expand to the named partial.
+func TestPartialsBasicBehavior(t *testing.T) { 
+    ioutil.WriteFile("text", []byte("from partial"), 0666)
+    defer os.Remove("text")
+    
+    template := "\"{{>text}}\""
+    expected := "\"from partial\""
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// The empty string should be used when the named partial is not found.
+func TestPartialsFailedLookup(t *testing.T) { 
+    template := "\"{{>text}}\""
+    expected := "\"\""
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// The greater-than operator should operate within the current context.
+func TestPartialsContext(t *testing.T) { 
+    ioutil.WriteFile("partial", []byte("*{{text}}*"), 0666)
+    defer os.Remove("partial")
+    
+    template := "\"{{>partial}}\""
+    data     := map[string]interface {}{"text":"content"}
+    expected := "\"*content*\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// The greater-than operator should properly recurse.
+func TestPartialsRecursion(t *testing.T) { 
+    ioutil.WriteFile("node", []byte("{{content}}<{{#nodes}}{{>node}}{{/nodes}}>"), 0666)
+    defer os.Remove("node")
+    
+    template := "{{>node}}"
+    data     := map[string]interface {}{"content":"X", "nodes":[]interface {}{map[string]interface {}{"content":"Y", "nodes":[]interface {}{}}}}
+    expected := "X<Y<>>"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// The greater-than operator should not alter surrounding whitespace.
+func TestPartialsSurroundingWhitespace(t *testing.T) { 
+    ioutil.WriteFile("partial", []byte("\t|\t"), 0666)
+    defer os.Remove("partial")
+    
+    template := "| {{>partial}} |"
+    expected := "| \t|\t |"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Whitespace should be left untouched.
+func TestPartialsInlineIndentation(t *testing.T) { 
+    ioutil.WriteFile("partial", []byte(">\n>"), 0666)
+    defer os.Remove("partial")
+    
+    template := "  {{data}}  {{> partial}}\n"
+    data     := map[string]interface {}{"data":"|"}
+    expected := "  |  >\n>\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// "\r\n" should be considered a newline for standalone tags.
+func TestPartialsStandaloneLineEndings(t *testing.T) { 
+    ioutil.WriteFile("partial", []byte(">"), 0666)
+    defer os.Remove("partial")
+    
+    template := "|\r\n{{>partial}}\r\n|"
+    expected := "|\r\n>|"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone tags should not require a newline to precede them.
+func TestPartialsStandaloneWithoutPreviousLine(t *testing.T) { 
+    ioutil.WriteFile("partial", []byte(">\n>"), 0666)
+    defer os.Remove("partial")
+    
+    template := "  {{>partial}}\n>"
+    expected := "  >\n  >>"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone tags should not require a newline to follow them.
+func TestPartialsStandaloneWithoutNewline(t *testing.T) { 
+    ioutil.WriteFile("partial", []byte(">\n>"), 0666)
+    defer os.Remove("partial")
+    
+    template := ">\n  {{>partial}}"
+    expected := ">\n  >\n  >"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Each line of the partial should be indented before rendering.
+func TestPartialsStandaloneIndentation(t *testing.T) { 
+    ioutil.WriteFile("partial", []byte("|\n{{{content}}}\n|\n"), 0666)
+    defer os.Remove("partial")
+    
+    template := "\\\n {{>partial}}\n/\n"
+    data     := map[string]interface {}{"content":"<\n->"}
+    expected := "\\\n |\n <\n->\n |\n/\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Superfluous in-tag whitespace should be ignored.
+func TestPartialsPaddingWhitespace(t *testing.T) { 
+    ioutil.WriteFile("partial", []byte("[]"), 0666)
+    defer os.Remove("partial")
+    
+    template := "|{{> partial }}|"
+    data     := map[string]interface {}{"boolean":true}
+    expected := "|[]|"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+
+
+
+// -----------------------------------------------------------------------------
+
+// Truthy sections should have their contents rendered.
+func TestSectionsTruthy(t *testing.T) { 
+    template := "\"{{#boolean}}This should be rendered.{{/boolean}}\""
+    data     := map[string]interface {}{"boolean":true}
+    expected := "\"This should be rendered.\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Falsey sections should have their contents omitted.
+func TestSectionsFalsey(t *testing.T) { 
+    template := "\"{{#boolean}}This should not be rendered.{{/boolean}}\""
+    data     := map[string]interface {}{"boolean":false}
+    expected := "\"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Objects and hashes should be pushed onto the context stack.
+func TestSectionsContext(t *testing.T) { 
+    template := "\"{{#context}}Hi {{name}}.{{/context}}\""
+    data     := map[string]interface {}{"context":map[string]interface {}{"name":"Joe"}}
+    expected := "\"Hi Joe.\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// All elements on the context stack should be accessible.
+func TestSectionsDeeplyNestedContexts(t *testing.T) { 
+    template := "{{#a}}\n{{one}}\n{{#b}}\n{{one}}{{two}}{{one}}\n{{#c}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{#d}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{#e}}\n{{one}}{{two}}{{three}}{{four}}{{five}}{{four}}{{three}}{{two}}{{one}}\n{{/e}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{/d}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{/c}}\n{{one}}{{two}}{{one}}\n{{/b}}\n{{one}}\n{{/a}}\n"
+    data     := map[string]interface {}{"a":map[string]interface {}{"one":1}, "b":map[string]interface {}{"two":2}, "c":map[string]interface {}{"three":3}, "d":map[string]interface {}{"four":4}, "e":map[string]interface {}{"five":5}}
+    expected := "1\n121\n12321\n1234321\n123454321\n1234321\n12321\n121\n1\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Lists should be iterated; list items should visit the context stack.
+func TestSectionsList(t *testing.T) { 
+    template := "\"{{#list}}{{item}}{{/list}}\""
+    data     := map[string]interface {}{"list":[]interface {}{map[string]interface {}{"item":1}, map[string]interface {}{"item":2}, map[string]interface {}{"item":3}}}
+    expected := "\"123\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Empty lists should behave like falsey values.
+func TestSectionsEmptyList(t *testing.T) { 
+    template := "\"{{#list}}Yay lists!{{/list}}\""
+    data     := map[string]interface {}{"list":[]interface {}{}}
+    expected := "\"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Multiple sections per template should be permitted.
+func TestSectionsDoubled(t *testing.T) { 
+    template := "{{#bool}}\n* first\n{{/bool}}\n* {{two}}\n{{#bool}}\n* third\n{{/bool}}\n"
+    data     := map[string]interface {}{"two":"second", "bool":true}
+    expected := "* first\n* second\n* third\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Nested truthy sections should have their contents rendered.
+func TestSectionsNestedTruthy(t *testing.T) { 
+    template := "| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |"
+    data     := map[string]interface {}{"bool":true}
+    expected := "| A B C D E |"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Nested falsey sections should be omitted.
+func TestSectionsNestedFalsey(t *testing.T) { 
+    template := "| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |"
+    data     := map[string]interface {}{"bool":false}
+    expected := "| A  E |"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Failed context lookups should be considered falsey.
+func TestSectionsContextMisses(t *testing.T) { 
+    template := "[{{#missing}}Found key 'missing'!{{/missing}}]"
+    expected := "[]"
+    actual   := Render(template)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Implicit iterators should directly interpolate strings.
+func TestSectionsImplicitIteratorString(t *testing.T) { 
+    template := "\"{{#list}}({{.}}){{/list}}\""
+    data     := map[string]interface {}{"list":[]interface {}{"a", "b", "c", "d", "e"}}
+    expected := "\"(a)(b)(c)(d)(e)\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Implicit iterators should cast integers to strings and interpolate.
+func TestSectionsImplicitIteratorInteger(t *testing.T) { 
+    template := "\"{{#list}}({{.}}){{/list}}\""
+    data     := map[string]interface {}{"list":[]interface {}{1, 2, 3, 4, 5}}
+    expected := "\"(1)(2)(3)(4)(5)\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Implicit iterators should cast decimals to strings and interpolate.
+func TestSectionsImplicitIteratorDecimal(t *testing.T) { 
+    template := "\"{{#list}}({{.}}){{/list}}\""
+    data     := map[string]interface {}{"list":[]interface {}{1.1, 2.2, 3.3, 4.4, 5.5}}
+    expected := "\"(1.1)(2.2)(3.3)(4.4)(5.5)\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names should be valid for Section tags.
+func TestSectionsDottedNamesTruthy(t *testing.T) { 
+    template := "\"{{#a.b.c}}Here{{/a.b.c}}\" == \"Here\""
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":true}}}
+    expected := "\"Here\" == \"Here\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names should be valid for Section tags.
+func TestSectionsDottedNamesFalsey(t *testing.T) { 
+    template := "\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\""
+    data     := map[string]interface {}{"a":map[string]interface {}{"b":map[string]interface {}{"c":false}}}
+    expected := "\"\" == \"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Dotted names that cannot be resolved should be considered falsey.
+func TestSectionsDottedNamesBrokenChains(t *testing.T) { 
+    template := "\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\""
+    data     := map[string]interface {}{"a":map[string]interface {}{}}
+    expected := "\"\" == \"\""
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Sections should not alter surrounding whitespace.
+func TestSectionsSurroundingWhitespace(t *testing.T) { 
+    template := " | {{#boolean}}\t|\t{{/boolean}} | \n"
+    data     := map[string]interface {}{"boolean":true}
+    expected := " | \t|\t | \n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Sections should not alter internal whitespace.
+func TestSectionsInternalWhitespace(t *testing.T) { 
+    template := " | {{#boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n"
+    data     := map[string]interface {}{"boolean":true}
+    expected := " |  \n  | \n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Single-line sections should not alter surrounding whitespace.
+func TestSectionsIndentedInlineSections(t *testing.T) { 
+    template := " {{#boolean}}YES{{/boolean}}\n {{#boolean}}GOOD{{/boolean}}\n"
+    data     := map[string]interface {}{"boolean":true}
+    expected := " YES\n GOOD\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone lines should be removed from the template.
+func TestSectionsStandaloneLines(t *testing.T) { 
+    template := "| This Is\n{{#boolean}}\n|\n{{/boolean}}\n| A Line\n"
+    data     := map[string]interface {}{"boolean":true}
+    expected := "| This Is\n|\n| A Line\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Indented standalone lines should be removed from the template.
+func TestSectionsIndentedStandaloneLines(t *testing.T) { 
+    template := "| This Is\n  {{#boolean}}\n|\n  {{/boolean}}\n| A Line\n"
+    data     := map[string]interface {}{"boolean":true}
+    expected := "| This Is\n|\n| A Line\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// "\r\n" should be considered a newline for standalone tags.
+func TestSectionsStandaloneLineEndings(t *testing.T) { 
+    template := "|\r\n{{#boolean}}\r\n{{/boolean}}\r\n|"
+    data     := map[string]interface {}{"boolean":true}
+    expected := "|\r\n|"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone tags should not require a newline to precede them.
+func TestSectionsStandaloneWithoutPreviousLine(t *testing.T) { 
+    template := "  {{#boolean}}\n#{{/boolean}}\n/"
+    data     := map[string]interface {}{"boolean":true}
+    expected := "#\n/"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Standalone tags should not require a newline to follow them.
+func TestSectionsStandaloneWithoutNewline(t *testing.T) { 
+    template := "#{{#boolean}}\n/\n  {{/boolean}}"
+    data     := map[string]interface {}{"boolean":true}
+    expected := "#\n/\n"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
+    }
+}
+
+// Superfluous in-tag whitespace should be ignored.
+func TestSectionsPadding(t *testing.T) { 
+    template := "|{{# boolean }}={{/ boolean }}|"
+    data     := map[string]interface {}{"boolean":true}
+    expected := "|=|"
+    actual   := Render(template, data)
+
+    if actual != expected {
+        t.Errorf("returned %#v, expected %#v", actual, expected)
     }
 }

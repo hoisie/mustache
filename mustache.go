@@ -28,6 +28,11 @@ type sectionElement struct {
     elems     []interface{}
 }
 
+type partialElement struct {
+    tmpl *Template
+    name string
+}
+
 type Template struct {
     data    string
     otag    string
@@ -209,10 +214,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
             }
         case '>':
             name := strings.TrimSpace(tag[1:])
-            partial, err := tmpl.parsePartial(name)
-            if err != nil {
-                return err
-            }
+            partial := &partialElement{tmpl, name}
             section.elems = append(section.elems, partial)
         case '=':
             if tag[len(tag)-1] != '=' {
@@ -227,8 +229,12 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
         case '{':
             if tag[len(tag)-1] == '}' {
                 //use a raw tag
-                section.elems = append(section.elems, &varElement{tag[1 : len(tag)-1], true})
+                name := strings.TrimSpace(tag[1 : len(tag)-1])
+                section.elems = append(section.elems, &varElement{name, true})
             }
+        case '&':
+            name := strings.TrimSpace(tag[1 : len(tag)])
+            section.elems = append(section.elems, &varElement{name, true})
         default:
             section.elems = append(section.elems, &varElement{tag, false})
         }
@@ -289,10 +295,7 @@ func (tmpl *Template) parse() error {
             return parseError{tmpl.curline, "unmatched close tag"}
         case '>':
             name := strings.TrimSpace(tag[1:])
-            partial, err := tmpl.parsePartial(name)
-            if err != nil {
-                return err
-            }
+            partial := &partialElement{tmpl, name}
             tmpl.elems = append(tmpl.elems, partial)
         case '=':
             if tag[len(tag)-1] != '=' {
@@ -307,8 +310,12 @@ func (tmpl *Template) parse() error {
         case '{':
             //use a raw tag
             if tag[len(tag)-1] == '}' {
-                tmpl.elems = append(tmpl.elems, &varElement{tag[1 : len(tag)-1], true})
+                name := strings.TrimSpace(tag[1 : len(tag)-1])
+                tmpl.elems = append(tmpl.elems, &varElement{name, true})
             }
+        case '&':
+            name := strings.TrimSpace(tag[1 : len(tag)])
+            tmpl.elems = append(tmpl.elems, &varElement{name, true})
         default:
             tmpl.elems = append(tmpl.elems, &varElement{tag, false})
         }
@@ -369,6 +376,14 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
 func lookup(contextChain []interface{}, name string) reflect.Value {
+    // dot notation
+    if name != "." && strings.Contains(name, ".") {
+        parts := strings.SplitN(name, ".", 2)
+
+        v := lookup(contextChain, parts[0])
+        return lookup([]interface{}{v}, parts[1])
+    }
+
     defer func() {
         if r := recover(); r != nil {
             fmt.Printf("Panic while looking up %q: %s\n", name, r)
@@ -455,8 +470,16 @@ loop:
 
 func renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer) {
     value := lookup(contextChain, section.name)
-    var context = contextChain[len(contextChain)-1].(reflect.Value)
+    var context interface{}
     var contexts = []interface{}{}
+
+    // guard against empty contextChain
+    if len(contextChain) > 0 {
+        context = contextChain[len(contextChain)-1].(reflect.Value)
+    } else {
+        context = make(map[string]interface{})
+    }
+
     // if the value is nil, check if it's an inverted section
     isEmpty := isEmpty(value)
     if isEmpty && !section.inverted || !isEmpty && section.inverted {
@@ -514,6 +537,11 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
         }
     case *sectionElement:
         renderSection(elem, contextChain, buf)
+    case *partialElement:
+        child, err := elem.tmpl.parsePartial(elem.name)
+        if err == nil {
+            child.renderTemplate(contextChain, buf)
+        }
     case *Template:
         elem.renderTemplate(contextChain, buf)
     }
