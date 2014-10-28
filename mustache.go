@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"reflect"
@@ -409,7 +408,6 @@ Outer:
 				if strings.Contains(name, ".length") {
 					varName := name[0:strings.Index(name, ".")]
 					a := av.MapIndex(reflect.ValueOf(varName))
-					log.Println(a.Elem().Len())
 					if a.Elem().Len() > 0 {
 						return reflect.ValueOf(a.Elem().Len())
 					}
