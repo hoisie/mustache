@@ -1,0 +1,10 @@
+{{#users.length}}
+	<ul>
+	{{#users}}
+		<li>{{name}}</li>
+	{{/users}}
+	</ul>
+{{/users.length}}
+{{^users.length}}
+	No users found
+{{/users.length}}
