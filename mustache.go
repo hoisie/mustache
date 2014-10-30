@@ -54,7 +54,7 @@ var (
 )
 
 // taken from pkg/template
-func htmlEscape(w io.Writer, s []byte) {
+func htmlEscape(w io.Writer, s []byte) (err error) {
     var esc []byte
     last := 0
     for i, c := range s {
@@ -72,11 +72,22 @@ func htmlEscape(w io.Writer, s []byte) {
         default:
             continue
         }
-        w.Write(s[last:i])
-        w.Write(esc)
+
+        _, err = w.Write(s[last:i])
+        if err != nil {
+            return
+        }
+
+        _, err = w.Write(esc)
+        if err != nil {
+            return
+        }
+
         last = i + 1
     }
-    w.Write(s[last:])
+
+    _, err = w.Write(s[last:])
+    return
 }
 
 func (tmpl *Template) readString(s string) (string, error) {
@@ -461,7 +472,7 @@ loop:
     return v
 }
 
-func renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer) {
+func renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer) (err error) {
     value := lookup(contextChain, section.name)
     var context = contextChain[len(contextChain)-1].(reflect.Value)
     var contexts = []interface{}{}
@@ -495,15 +506,23 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
     for _, ctx := range contexts {
         chain2[0] = ctx
         for _, elem := range section.elems {
-            renderElement(elem, chain2, buf)
+            err = renderElement(elem, chain2, buf)
+            if err != nil {
+                return
+            }
         }
     }
+
+    return nil
 }
 
-func renderElement(element interface{}, contextChain []interface{}, buf io.Writer) {
+func renderElement(element interface{}, contextChain []interface{}, buf io.Writer) (err error) {
     switch elem := element.(type) {
     case *textElement:
-        buf.Write(elem.text)
+        _, err = buf.Write(elem.text)
+        if err != nil {
+            return
+        }
     case *varElement:
         defer func() {
             if r := recover(); r != nil {
@@ -514,34 +533,60 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 
         if val.IsValid() {
             if elem.raw {
-                fmt.Fprint(buf, val.Interface())
+                _, err = fmt.Fprint(buf, val.Interface())
+                if err != nil {
+                    return
+                }
             } else {
                 s := fmt.Sprint(val.Interface())
-                htmlEscape(buf, []byte(s))
+                err = htmlEscape(buf, []byte(s))
+                if err != nil {
+                    return
+                }
             }
         }
     case *sectionElement:
-        renderSection(elem, contextChain, buf)
+        err = renderSection(elem, contextChain, buf)
+        if err != nil {
+            return
+        }
     case *Template:
-        elem.renderTemplate(contextChain, buf)
+        err = elem.renderTemplate(contextChain, buf)
+        if err != nil {
+            return
+        }
     }
+
+    return nil
 }
 
-func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) {
+func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) (err error) {
     for _, elem := range tmpl.elems {
-        renderElement(elem, contextChain, buf)
+        err = renderElement(elem, contextChain, buf)
+        if err != nil {
+            return
+        }
     }
+
+    return nil
 }
 
 func (tmpl *Template) Render(context ...interface{}) string {
     var buf bytes.Buffer
+
+    tmpl.RenderTo(&buf, context...)
+
+    return buf.String()
+}
+
+func (tmpl *Template) RenderTo(w io.Writer, context ...interface{}) error {
     var contextChain []interface{}
     for _, c := range context {
         val := reflect.ValueOf(c)
         contextChain = append(contextChain, val)
     }
-    tmpl.renderTemplate(contextChain, &buf)
-    return buf.String()
+
+    return tmpl.renderTemplate(contextChain, w)
 }
 
 func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) string {
@@ -588,6 +633,15 @@ func Render(data string, context ...interface{}) string {
         return err.Error()
     }
     return tmpl.Render(context...)
+}
+
+func RenderTo(w io.Writer, data string, context ...interface{}) error {
+    tmpl, err := ParseString(data)
+    if err != nil {
+        return err
+    }
+
+    return tmpl.RenderTo(w, context...)
 }
 
 func RenderInLayout(data string, layoutData string, context ...interface{}) string {
