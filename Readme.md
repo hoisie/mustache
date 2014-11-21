@@ -18,9 +18,9 @@ There are four main methods in this package:
     
     func RenderFile(filename string, context ...interface{}) string
     
-    func ParseString(data string) (*template, os.Error)
+    func ParseString(data string) (*Template, os.Error)
     
-    func ParseFile(filename string) (*template, os.Error) 
+    func ParseFile(filename string) (*Template, os.Error)
 
 There are also two additional methods for using layouts (explained below).
 
