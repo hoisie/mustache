@@ -4,6 +4,7 @@ import (
     "bytes"
     "errors"
     "fmt"
+    "html/template"
     "io"
     "io/ioutil"
     "os"
@@ -52,32 +53,6 @@ var (
     esc_lt   = []byte("&lt;")
     esc_gt   = []byte("&gt;")
 )
-
-// taken from pkg/template
-func htmlEscape(w io.Writer, s []byte) {
-    var esc []byte
-    last := 0
-    for i, c := range s {
-        switch c {
-        case '"':
-            esc = esc_quot
-        case '\'':
-            esc = esc_apos
-        case '&':
-            esc = esc_amp
-        case '<':
-            esc = esc_lt
-        case '>':
-            esc = esc_gt
-        default:
-            continue
-        }
-        w.Write(s[last:i])
-        w.Write(esc)
-        last = i + 1
-    }
-    w.Write(s[last:])
-}
 
 func (tmpl *Template) readString(s string) (string, error) {
     i := tmpl.p
@@ -398,7 +373,7 @@ Outer:
                 }
             }
             if name == "." {
-              return v
+                return v
             }
             switch av := v; av.Kind() {
             case reflect.Ptr:
@@ -517,7 +492,7 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
                 fmt.Fprint(buf, val.Interface())
             } else {
                 s := fmt.Sprint(val.Interface())
-                htmlEscape(buf, []byte(s))
+                template.HTMLEscape(buf, []byte(s))
             }
         }
     case *sectionElement:
