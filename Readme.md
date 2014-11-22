@@ -33,9 +33,9 @@ The Render method takes a string and a data source, which is generally a map or 
 If you're planning to render the same template multiple times, you do it efficiently by compiling the template first:
 
     tmpl,_ := mustache.ParseString("hello {{c}}")
-    var buf bytes.Buffer;
+    var result string;
     for i := 0; i < 10; i++ {
-        tmpl.Render (map[string]string { "c":"world"}, &buf)  
+        result = result + tmpl.Render(map[string]string { "c":"world"})  
     }
 
 For more example usage, please see `mustache_test.go`
