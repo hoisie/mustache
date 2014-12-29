@@ -131,169 +131,247 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 	for {
 		text, err := tmpl.readString(tmpl.otag)
 
-        if err == io.EOF {
-            return parseError{section.startline, "Section " + section.name + " has no closing tag"}
-        }
+		if err == io.EOF {
+			return parseError{section.startline, "Section " + section.name + " has no closing tag"}
+		}
 
-        // put text into an item
-        text = text[0 : len(text)-len(tmpl.otag)]
-        section.elems = append(section.elems, &textElement{[]byte(text)})
-        if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
-            text, err = tmpl.readString("}" + tmpl.ctag)
-        } else {
-            text, err = tmpl.readString(tmpl.ctag)
-        }
+		// put text into an item
+		text = text[0 : len(text)-len(tmpl.otag)]
+		section.elems = append(section.elems, &textElement{[]byte(text)})
+		if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
+			text, err = tmpl.readString("}" + tmpl.ctag)
+		} else {
+			text, err = tmpl.readString(tmpl.ctag)
+		}
 
-        if err == io.EOF {
-            //put the remaining text in a block
-            return parseError{tmpl.curline, "unmatched open tag"}
-        }
+		if err == io.EOF {
+			//put the remaining text in a block
+			return parseError{tmpl.curline, "unmatched open tag"}
+		}
 
-        //trim the close tag off the text
-        tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
+		//trim the close tag off the text
+		tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
 
-        if len(tag) == 0 {
-            return parseError{tmpl.curline, "empty tag"}
-        }
-        switch tag[0] {
-        case '!':
-            //ignore comment
-            break
-        case '#', '^':
-            name := strings.TrimSpace(tag[1:])
+		if len(tag) == 0 {
+			return parseError{tmpl.curline, "empty tag"}
+		}
+		switch tag[0] {
+		case '!':
+			removeStandaloneCommentLines(section.elems, tmpl)
+			//ignore comment
+			break
+		case '#', '^':
+			name := strings.TrimSpace(tag[1:])
 
-            //ignore the newline when a section starts
-            if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
-                tmpl.p += 1
-            } else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
-                tmpl.p += 2
-            }
+			//ignore the newline when a section starts
+			if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
+				tmpl.p += 1
+			} else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
+				tmpl.p += 2
+			}
 
-            se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
-            err := tmpl.parseSection(&se)
-            if err != nil {
-                return err
-            }
-            section.elems = append(section.elems, &se)
-        case '/':
-            name := strings.TrimSpace(tag[1:])
-            if name != section.name {
-                return parseError{tmpl.curline, "interleaved closing tag: " + name}
-            } else {
-                return nil
-            }
-        case '>':
-            name := strings.TrimSpace(tag[1:])
-            partial, err := tmpl.parsePartial(name)
-            if err != nil {
-                return err
-            }
-            section.elems = append(section.elems, partial)
-        case '=':
-            if tag[len(tag)-1] != '=' {
-                return parseError{tmpl.curline, "Invalid meta tag"}
-            }
-            tag = strings.TrimSpace(tag[1 : len(tag)-1])
-            newtags := strings.SplitN(tag, " ", 2)
-            if len(newtags) == 2 {
-                tmpl.otag = newtags[0]
-                tmpl.ctag = newtags[1]
-            }
-        case '{':
-            if tag[len(tag)-1] == '}' {
-                //use a raw tag
-                section.elems = append(section.elems, &varElement{strings.TrimSpace(tag[1 : len(tag)-1]), true})
-            }
-        case '&':
-            section.elems = append(section.elems, &varElement{strings.TrimSpace(tag[1:]), true})
-        default:
-            section.elems = append(section.elems, &varElement{tag, false})
-        }
-    }
+			se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
+			err := tmpl.parseSection(&se)
+			if err != nil {
+				return err
+			}
+			section.elems = append(section.elems, &se)
+		case '/':
+			name := strings.TrimSpace(tag[1:])
+			if name != section.name {
+				return parseError{tmpl.curline, "interleaved closing tag: " + name}
+			} else {
+				return nil
+			}
+		case '>':
+			name := strings.TrimSpace(tag[1:])
+			partial, err := tmpl.parsePartial(name)
+			if err != nil {
+				return err
+			}
+			section.elems = append(section.elems, partial)
+		case '=':
+			if tag[len(tag)-1] != '=' {
+				return parseError{tmpl.curline, "Invalid meta tag"}
+			}
+			tag = strings.TrimSpace(tag[1 : len(tag)-1])
+			newtags := strings.SplitN(tag, " ", 2)
+			if len(newtags) == 2 {
+				tmpl.otag = newtags[0]
+				tmpl.ctag = newtags[1]
+			}
+		case '{':
+			if tag[len(tag)-1] == '}' {
+				//use a raw tag
+				section.elems = append(section.elems, &varElement{strings.TrimSpace(tag[1 : len(tag)-1]), true})
+			}
+		case '&':
+			section.elems = append(section.elems, &varElement{strings.TrimSpace(tag[1:]), true})
+		default:
+			section.elems = append(section.elems, &varElement{tag, false})
+		}
+	}
 
 	return nil
 }
 
 func (tmpl *Template) parse() error {
-    for {
-        text, err := tmpl.readString(tmpl.otag)
-        if err == io.EOF {
-            //put the remaining text in a block
-            tmpl.elems = append(tmpl.elems, &textElement{[]byte(text)})
-            return nil
-        }
+	for {
+		text, err := tmpl.readString(tmpl.otag)
+		if err == io.EOF {
+			//put the remaining text in a block
+			tmpl.elems = append(tmpl.elems, &textElement{[]byte(text)})
+			return nil
+		}
 
-        // put text into an item
-        text = text[0 : len(text)-len(tmpl.otag)]
-        tmpl.elems = append(tmpl.elems, &textElement{[]byte(text)})
+		// put text into an item
+		text = text[0 : len(text)-len(tmpl.otag)]
+		tmpl.elems = append(tmpl.elems, &textElement{[]byte(text)})
 
-        if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
-            text, err = tmpl.readString("}" + tmpl.ctag)
-        } else {
-            text, err = tmpl.readString(tmpl.ctag)
-        }
+		if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
+			text, err = tmpl.readString("}" + tmpl.ctag)
+		} else {
+			text, err = tmpl.readString(tmpl.ctag)
+		}
 
-        if err == io.EOF {
-            //put the remaining text in a block
-            return parseError{tmpl.curline, "unmatched open tag"}
-        }
+		if err == io.EOF {
+			//put the remaining text in a block
+			return parseError{tmpl.curline, "unmatched open tag"}
+		}
 
-        //trim the close tag off the text
-        tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
-        if len(tag) == 0 {
-            return parseError{tmpl.curline, "empty tag"}
-        }
-        switch tag[0] {
-        case '!':
-            //ignore comment
-            break
-        case '#', '^':
-            name := strings.TrimSpace(tag[1:])
+		//trim the close tag off the text
+		tag := strings.TrimSpace(text[0 : len(text)-len(tmpl.ctag)])
+		if len(tag) == 0 {
+			return parseError{tmpl.curline, "empty tag"}
+		}
+		switch tag[0] {
+		case '!':
+			removeStandaloneCommentLines(tmpl.elems, tmpl)
+			//ignore comment
+			break
+		case '#', '^':
+			name := strings.TrimSpace(tag[1:])
 
-            if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
-                tmpl.p += 1
-            } else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
-                tmpl.p += 2
-            }
+			if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
+				tmpl.p += 1
+			} else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
+				tmpl.p += 2
+			}
 
-            se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
-            err := tmpl.parseSection(&se)
-            if err != nil {
-                return err
-            }
-            tmpl.elems = append(tmpl.elems, &se)
-        case '/':
-            return parseError{tmpl.curline, "unmatched close tag"}
-        case '>':
-            name := strings.TrimSpace(tag[1:])
-            partial, err := tmpl.parsePartial(name)
-            if err != nil {
-                return err
-            }
-            tmpl.elems = append(tmpl.elems, partial)
-        case '=':
-            if tag[len(tag)-1] != '=' {
-                return parseError{tmpl.curline, "Invalid meta tag"}
-            }
-            tag = strings.TrimSpace(tag[1 : len(tag)-1])
-            newtags := strings.SplitN(tag, " ", 2)
-            if len(newtags) == 2 {
-                tmpl.otag = newtags[0]
-                tmpl.ctag = newtags[1]
-            }
-        case '{':
-            //use a raw tag
-            if tag[len(tag)-1] == '}' {
-                tmpl.elems = append(tmpl.elems, &varElement{strings.TrimSpace(tag[1 : len(tag)-1]), true})
-            }
-        case '&':
-            tmpl.elems = append(tmpl.elems, &varElement{strings.TrimSpace(tag[1:]), true})
-        default:
-            tmpl.elems = append(tmpl.elems, &varElement{tag, false})
-        }
-    }
+			se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
+			err := tmpl.parseSection(&se)
+			if err != nil {
+				return err
+			}
+			tmpl.elems = append(tmpl.elems, &se)
+		case '/':
+			return parseError{tmpl.curline, "unmatched close tag"}
+		case '>':
+			name := strings.TrimSpace(tag[1:])
+			partial, err := tmpl.parsePartial(name)
+			if err != nil {
+				return err
+			}
+			tmpl.elems = append(tmpl.elems, partial)
+		case '=':
+			if tag[len(tag)-1] != '=' {
+				return parseError{tmpl.curline, "Invalid meta tag"}
+			}
+			tag = strings.TrimSpace(tag[1 : len(tag)-1])
+			newtags := strings.SplitN(tag, " ", 2)
+			if len(newtags) == 2 {
+				tmpl.otag = newtags[0]
+				tmpl.ctag = newtags[1]
+			}
+		case '{':
+			//use a raw tag
+			if tag[len(tag)-1] == '}' {
+				tmpl.elems = append(tmpl.elems, &varElement{strings.TrimSpace(tag[1 : len(tag)-1]), true})
+			}
+		case '&':
+			tmpl.elems = append(tmpl.elems, &varElement{strings.TrimSpace(tag[1:]), true})
+		default:
+			tmpl.elems = append(tmpl.elems, &varElement{tag, false})
+		}
+	}
 
 	return nil
+}
+
+// removeStandaloneCommentLines removes whitespace around comments where needed.
+func removeStandaloneCommentLines(elems []interface{}, tmpl *Template) {
+	isStandalone := false
+	if len(elems) > 0 {
+		index := len(elems) - 1
+		switch elems[index].(type) {
+		case *textElement:
+			{
+				old := elems[index].(*textElement)
+				isStandalone = endsWithWhitespace(old.text) || (index == 0 && isWhitespace(old.text))
+				if isStandalone {
+					elems[index] = &textElement{[]byte(strings.TrimRight(string(old.text), " "))}
+				}
+			}
+		default:
+		}
+	} else {
+		isStandalone = true
+	}
+	if isStandalone {
+		skipFollowingNewLines(tmpl)
+	}
+}
+
+func endsWithWhitespace(b []byte) bool {
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] == '\n' {
+			return true
+		}
+		if b[i] == ' ' {
+			continue
+		}
+	}
+	return false
+}
+
+func isWhitespace(b []byte) bool {
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] == ' ' || b[i] == '\t' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func skipFollowingNewLines(tmpl *Template) {
+	i := tmpl.p
+	for true {
+		// Are we at the end?
+		if i >= len(tmpl.data) {
+			return
+		}
+
+		if tmpl.data[i] == '\n' {
+			i++
+			tmpl.p = i
+			continue
+		}
+
+		if tmpl.data[i] == '\r' {
+			i++
+			if i > len(tmpl.data) {
+				return
+			}
+			if tmpl.data[i] == '\n' {
+				i++
+				tmpl.p = i
+				continue
+			}
+		}
+
+		break
+	}
 }
 
 // See if name is a method of the value at some level of indirection.

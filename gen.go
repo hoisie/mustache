@@ -33,7 +33,7 @@ type JSONSpecTest struct {
 var filename = flag.String("output", "mustache_spec_test.go", "output file name")
 
 var supportedSpecNames = []string{
-	// "comments",
+	"comments",
 	// "delimiters",
 	"interpolation",
 	// "inverted",

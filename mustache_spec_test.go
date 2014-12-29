@@ -22,6 +22,83 @@ func testSpec(t *testing.T,
 	}
 }
 
+func TestCommentsInline(t *testing.T) {
+	testSpec(t,
+		"12345{{! Comment Block! }}67890",
+		"1234567890",
+		map[string]interface{}{})
+}
+
+func TestCommentsMultiline(t *testing.T) {
+	testSpec(t,
+		"12345{{!\n  This is a\n  multi-line comment...\n}}67890\n",
+		"1234567890\n",
+		map[string]interface{}{})
+}
+
+func TestCommentsStandalone(t *testing.T) {
+	testSpec(t,
+		"Begin.\n{{! Comment Block! }}\nEnd.\n",
+		"Begin.\nEnd.\n",
+		map[string]interface{}{})
+}
+
+func TestCommentsIndentedStandalone(t *testing.T) {
+	testSpec(t,
+		"Begin.\n  {{! Indented Comment Block! }}\nEnd.\n",
+		"Begin.\nEnd.\n",
+		map[string]interface{}{})
+}
+
+func TestCommentsStandaloneLineEndings(t *testing.T) {
+	testSpec(t,
+		"|\r\n{{! Standalone Comment }}\r\n|",
+		"|\r\n|",
+		map[string]interface{}{})
+}
+
+func TestCommentsStandaloneWithoutPreviousLine(t *testing.T) {
+	testSpec(t,
+		"  {{! I'm Still Standalone }}\n!",
+		"!",
+		map[string]interface{}{})
+}
+
+func TestCommentsStandaloneWithoutNewline(t *testing.T) {
+	testSpec(t,
+		"!\n  {{! I'm Still Standalone }}",
+		"!\n",
+		map[string]interface{}{})
+}
+
+func TestCommentsMultilineStandalone(t *testing.T) {
+	testSpec(t,
+		"Begin.\n{{!\nSomething's going on here...\n}}\nEnd.\n",
+		"Begin.\nEnd.\n",
+		map[string]interface{}{})
+}
+
+func TestCommentsIndentedMultilineStandalone(t *testing.T) {
+	testSpec(t,
+		"Begin.\n  {{!\n    Something's going on here...\n  }}\nEnd.\n",
+		"Begin.\nEnd.\n",
+		map[string]interface{}{})
+}
+
+func TestCommentsIndentedInline(t *testing.T) {
+	testSpec(t,
+		"  12 {{! 34 }}\n",
+		"  12 \n",
+		map[string]interface{}{})
+}
+
+func TestCommentsSurroundingWhitespace(t *testing.T) {
+	testSpec(t,
+		"12345 {{! Comment Block! }} 67890",
+		"12345  67890",
+		map[string]interface{}{})
+}
+
 func TestInterpolationNoInterpolation(t *testing.T) {
 	testSpec(t,
 		"Hello from {Mustache}!\n",
