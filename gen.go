@@ -38,7 +38,7 @@ var supportedSpecNames = []string{
 	"interpolation",
 	// "inverted",
 	// "partials",
-	// "sections",
+	"sections",
 	// "lambdas",
 }
 
@@ -140,7 +140,7 @@ func testSpec(t *testing.T,
 		context interface{}) {
 		output := convertHTMLCharsToExpectedFormat(Render(template, context))
 		if output != expected {
-		      t.Errorf("%q expected <%q> but got <%q>",
+		      t.Errorf("%q\nexpected: %q\nbut got:  %q",
 		      	template, expected, output)
 		}
 }

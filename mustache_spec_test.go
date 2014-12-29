@@ -17,7 +17,7 @@ func testSpec(t *testing.T,
 	context interface{}) {
 	output := convertHTMLCharsToExpectedFormat(Render(template, context))
 	if output != expected {
-		t.Errorf("%q expected <%q> but got <%q>",
+		t.Errorf("%q\nexpected: %q\nbut got:  %q",
 			template, expected, output)
 	}
 }
@@ -307,4 +307,179 @@ func TestInterpolationAmpersandWithPadding(t *testing.T) {
 		"|{{& string }}|",
 		"|---|",
 		map[string]interface{}{"string": "---"})
+}
+
+func TestSectionsTruthy(t *testing.T) {
+	testSpec(t,
+		"\"{{#boolean}}This should be rendered.{{/boolean}}\"",
+		"\"This should be rendered.\"",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestSectionsFalsey(t *testing.T) {
+	testSpec(t,
+		"\"{{#boolean}}This should not be rendered.{{/boolean}}\"",
+		"\"\"",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestSectionsContext(t *testing.T) {
+	testSpec(t,
+		"\"{{#context}}Hi {{name}}.{{/context}}\"",
+		"\"Hi Joe.\"",
+		map[string]interface{}{"context": map[string]interface{}{"name": "Joe"}})
+}
+
+func TestSectionsDeeplyNestedContexts(t *testing.T) {
+	testSpec(t,
+		"{{#a}}\n{{one}}\n{{#b}}\n{{one}}{{two}}{{one}}\n{{#c}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{#d}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{#e}}\n{{one}}{{two}}{{three}}{{four}}{{five}}{{four}}{{three}}{{two}}{{one}}\n{{/e}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{/d}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{/c}}\n{{one}}{{two}}{{one}}\n{{/b}}\n{{one}}\n{{/a}}\n",
+		"1\n121\n12321\n1234321\n123454321\n1234321\n12321\n121\n1\n",
+		map[string]interface{}{"a": map[string]interface{}{"one": 1}, "b": map[string]interface{}{"two": 2}, "c": map[string]interface{}{"three": 3}, "d": map[string]interface{}{"four": 4}, "e": map[string]interface{}{"five": 5}})
+}
+
+func TestSectionsList(t *testing.T) {
+	testSpec(t,
+		"\"{{#list}}{{item}}{{/list}}\"",
+		"\"123\"",
+		map[string]interface{}{"list": []interface{}{map[string]interface{}{"item": 1}, map[string]interface{}{"item": 2}, map[string]interface{}{"item": 3}}})
+}
+
+func TestSectionsEmptyList(t *testing.T) {
+	testSpec(t,
+		"\"{{#list}}Yay lists!{{/list}}\"",
+		"\"\"",
+		map[string]interface{}{"list": []interface{}{}})
+}
+
+func TestSectionsDoubled(t *testing.T) {
+	testSpec(t,
+		"{{#bool}}\n* first\n{{/bool}}\n* {{two}}\n{{#bool}}\n* third\n{{/bool}}\n",
+		"* first\n* second\n* third\n",
+		map[string]interface{}{"two": "second", "bool": true})
+}
+
+func TestSectionsNestedTruthy(t *testing.T) {
+	testSpec(t,
+		"| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |",
+		"| A B C D E |",
+		map[string]interface{}{"bool": true})
+}
+
+func TestSectionsNestedFalsey(t *testing.T) {
+	testSpec(t,
+		"| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |",
+		"| A  E |",
+		map[string]interface{}{"bool": false})
+}
+
+func TestSectionsContextMisses(t *testing.T) {
+	testSpec(t,
+		"[{{#missing}}Found key 'missing'!{{/missing}}]",
+		"[]",
+		map[string]interface{}{})
+}
+
+func TestSectionsImplicitIteratorString(t *testing.T) {
+	testSpec(t,
+		"\"{{#list}}({{.}}){{/list}}\"",
+		"\"(a)(b)(c)(d)(e)\"",
+		map[string]interface{}{"list": []interface{}{"a", "b", "c", "d", "e"}})
+}
+
+func TestSectionsImplicitIteratorInteger(t *testing.T) {
+	testSpec(t,
+		"\"{{#list}}({{.}}){{/list}}\"",
+		"\"(1)(2)(3)(4)(5)\"",
+		map[string]interface{}{"list": []interface{}{1, 2, 3, 4, 5}})
+}
+
+func TestSectionsImplicitIteratorDecimal(t *testing.T) {
+	testSpec(t,
+		"\"{{#list}}({{.}}){{/list}}\"",
+		"\"(1.1)(2.2)(3.3)(4.4)(5.5)\"",
+		map[string]interface{}{"list": []interface{}{1.1, 2.2, 3.3, 4.4, 5.5}})
+}
+
+func TestSectionsDottedNamesTruthy(t *testing.T) {
+	testSpec(t,
+		"\"{{#a.b.c}}Here{{/a.b.c}}\" == \"Here\"",
+		"\"Here\" == \"Here\"",
+		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": true}}})
+}
+
+func TestSectionsDottedNamesFalsey(t *testing.T) {
+	testSpec(t,
+		"\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\"",
+		"\"\" == \"\"",
+		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": false}}})
+}
+
+func TestSectionsDottedNamesBrokenChains(t *testing.T) {
+	testSpec(t,
+		"\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\"",
+		"\"\" == \"\"",
+		map[string]interface{}{"a": map[string]interface{}{}})
+}
+
+func TestSectionsSurroundingWhitespace(t *testing.T) {
+	testSpec(t,
+		" | {{#boolean}}\t|\t{{/boolean}} | \n",
+		" | \t|\t | \n",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestSectionsInternalWhitespace(t *testing.T) {
+	testSpec(t,
+		" | {{#boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n",
+		" |  \n  | \n",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestSectionsIndentedInlineSections(t *testing.T) {
+	testSpec(t,
+		" {{#boolean}}YES{{/boolean}}\n {{#boolean}}GOOD{{/boolean}}\n",
+		" YES\n GOOD\n",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestSectionsStandaloneLines(t *testing.T) {
+	testSpec(t,
+		"| This Is\n{{#boolean}}\n|\n{{/boolean}}\n| A Line\n",
+		"| This Is\n|\n| A Line\n",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestSectionsIndentedStandaloneLines(t *testing.T) {
+	testSpec(t,
+		"| This Is\n  {{#boolean}}\n|\n  {{/boolean}}\n| A Line\n",
+		"| This Is\n|\n| A Line\n",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestSectionsStandaloneLineEndings(t *testing.T) {
+	testSpec(t,
+		"|\r\n{{#boolean}}\r\n{{/boolean}}\r\n|",
+		"|\r\n|",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestSectionsStandaloneWithoutPreviousLine(t *testing.T) {
+	testSpec(t,
+		"  {{#boolean}}\n#{{/boolean}}\n/",
+		"#\n/",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestSectionsStandaloneWithoutNewline(t *testing.T) {
+	testSpec(t,
+		"#{{#boolean}}\n/\n  {{/boolean}}",
+		"#\n/\n",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestSectionsPadding(t *testing.T) {
+	testSpec(t,
+		"|{{# boolean }}={{/ boolean }}|",
+		"|=|",
+		map[string]interface{}{"boolean": true})
 }

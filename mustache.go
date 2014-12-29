@@ -129,15 +129,22 @@ func (tmpl *Template) parsePartial(name string) (*Template, error) {
 
 func (tmpl *Template) parseSection(section *sectionElement) error {
 	for {
+		potentialStandalone := tmpl.isBeginningOfLine()
 		text, err := tmpl.readString(tmpl.otag)
 
 		if err == io.EOF {
 			return parseError{section.startline, "Section " + section.name + " has no closing tag"}
 		}
 
+		if !potentialStandalone {
+			potentialStandalone = strings.IndexByte(text, '\n') != -1
+		}
+
 		// put text into an item
 		text = text[0 : len(text)-len(tmpl.otag)]
 		section.elems = append(section.elems, &textElement{[]byte(text)})
+		potentialStandalone = potentialStandalone && endsWithWhitespace([]byte(text))
+
 		if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
 			text, err = tmpl.readString("}" + tmpl.ctag)
 		} else {
@@ -157,18 +164,13 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 		}
 		switch tag[0] {
 		case '!':
-			removeStandaloneCommentLines(section.elems, tmpl)
 			//ignore comment
+			handleStandaloneLine(section.elems, tmpl, potentialStandalone)
 			break
 		case '#', '^':
 			name := strings.TrimSpace(tag[1:])
 
-			//ignore the newline when a section starts
-			if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
-				tmpl.p += 1
-			} else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
-				tmpl.p += 2
-			}
+			handleStandaloneLine(section.elems, tmpl, potentialStandalone)
 
 			se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
 			err := tmpl.parseSection(&se)
@@ -181,6 +183,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 			if name != section.name {
 				return parseError{tmpl.curline, "interleaved closing tag: " + name}
 			} else {
+				handleStandaloneLine(section.elems, tmpl, potentialStandalone)
 				return nil
 			}
 		case '>':
@@ -215,8 +218,13 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 	return nil
 }
 
+func (tmpl *Template) isBeginningOfLine() bool {
+	return tmpl.p == 0 || tmpl.data[tmpl.p-1] == '\n'
+}
+
 func (tmpl *Template) parse() error {
 	for {
+		potentialStandalone := tmpl.isBeginningOfLine()
 		text, err := tmpl.readString(tmpl.otag)
 		if err == io.EOF {
 			//put the remaining text in a block
@@ -224,9 +232,14 @@ func (tmpl *Template) parse() error {
 			return nil
 		}
 
+		if !potentialStandalone {
+			potentialStandalone = strings.IndexByte(text, '\n') != -1
+		}
+
 		// put text into an item
 		text = text[0 : len(text)-len(tmpl.otag)]
 		tmpl.elems = append(tmpl.elems, &textElement{[]byte(text)})
+		potentialStandalone = potentialStandalone && endsWithWhitespace([]byte(text))
 
 		if tmpl.p < len(tmpl.data) && tmpl.data[tmpl.p] == '{' {
 			text, err = tmpl.readString("}" + tmpl.ctag)
@@ -246,17 +259,12 @@ func (tmpl *Template) parse() error {
 		}
 		switch tag[0] {
 		case '!':
-			removeStandaloneCommentLines(tmpl.elems, tmpl)
+			handleStandaloneLine(tmpl.elems, tmpl, potentialStandalone)
 			//ignore comment
 			break
 		case '#', '^':
 			name := strings.TrimSpace(tag[1:])
-
-			if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
-				tmpl.p += 1
-			} else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
-				tmpl.p += 2
-			}
+			handleStandaloneLine(tmpl.elems, tmpl, potentialStandalone)
 
 			se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
 			err := tmpl.parseSection(&se)
@@ -298,28 +306,55 @@ func (tmpl *Template) parse() error {
 	return nil
 }
 
-// removeStandaloneCommentLines removes whitespace around comments where needed.
-func removeStandaloneCommentLines(elems []interface{}, tmpl *Template) {
-	isStandalone := false
+func handleStandaloneLine(elems []interface{}, tmpl *Template, potentialStandalone bool) {
+	if potentialStandalone {
+		followingNewLine := tmpl.peekNewLine()
+		if followingNewLine != -1 {
+			tmpl.p += followingNewLine
+			removeIndentIfNecessary(elems)
+		}
+	}
+}
+
+func removeIndentIfNecessary(elems []interface{}) {
 	if len(elems) > 0 {
 		index := len(elems) - 1
 		switch elems[index].(type) {
 		case *textElement:
 			{
 				old := elems[index].(*textElement)
-				isStandalone = endsWithWhitespace(old.text) || (index == 0 && isWhitespace(old.text))
-				if isStandalone {
-					elems[index] = &textElement{[]byte(strings.TrimRight(string(old.text), " "))}
-				}
+				elems[index] = &textElement{[]byte(strings.TrimRight(string(old.text), " \t"))}
 			}
-		default:
 		}
-	} else {
-		isStandalone = true
 	}
-	if isStandalone {
-		skipFollowingNewLines(tmpl)
+}
+
+func (tmpl *Template) isEndOfData() bool {
+	return tmpl.p == len(tmpl.data)
+}
+
+func (tmpl *Template) peekNewLine() int {
+	if tmpl.isEndOfData() {
+		return 0
 	}
+
+	i := tmpl.p
+
+	if tmpl.data[i] == '\n' {
+		return 1
+	}
+
+	if tmpl.data[i] == '\r' {
+		i++
+		if tmpl.isEndOfData() {
+			return 0
+		}
+		if tmpl.data[i] == '\n' {
+			return 2
+		}
+	}
+
+	return -1
 }
 
 func endsWithWhitespace(b []byte) bool {
@@ -327,51 +362,12 @@ func endsWithWhitespace(b []byte) bool {
 		if b[i] == '\n' {
 			return true
 		}
-		if b[i] == ' ' {
-			continue
-		}
-	}
-	return false
-}
-
-func isWhitespace(b []byte) bool {
-	for i := len(b) - 1; i >= 0; i-- {
 		if b[i] == ' ' || b[i] == '\t' {
 			continue
 		}
 		return false
 	}
 	return true
-}
-
-func skipFollowingNewLines(tmpl *Template) {
-	i := tmpl.p
-	for true {
-		// Are we at the end?
-		if i >= len(tmpl.data) {
-			return
-		}
-
-		if tmpl.data[i] == '\n' {
-			i++
-			tmpl.p = i
-			continue
-		}
-
-		if tmpl.data[i] == '\r' {
-			i++
-			if i > len(tmpl.data) {
-				return
-			}
-			if tmpl.data[i] == '\n' {
-				i++
-				tmpl.p = i
-				continue
-			}
-		}
-
-		break
-	}
 }
 
 // See if name is a method of the value at some level of indirection.
