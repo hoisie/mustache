@@ -23,18 +23,19 @@ type JSONSpecDoc struct {
 }
 
 type JSONSpecTest struct {
-	Name        string      `json:"name"`
-	Data        interface{} `json:"data"`
-	Expected    string      `json:"expected"`
-	Template    string      `json:"template"`
-	Description string      `json:"desc"`
+	Name        string             `json:"name"`
+	Data        interface{}        `json:"data"`
+	Expected    string             `json:"expected"`
+	Template    string             `json:"template"`
+	Description string             `json:"desc"`
+	Partials    *map[string]string `json:"partials"`
 }
 
 var filename = flag.String("output", "mustache_spec_test.go", "output file name")
 
 var supportedSpecNames = []string{
 	"comments",
-	// "delimiters",
+	"delimiters",
 	"interpolation",
 	// "inverted",
 	// "partials",
@@ -55,6 +56,13 @@ func main() {
 		fmt.Fprint(&buf, `func `)
 		fmt.Fprint(&buf, "Test"+strings.Title(scope)+r.Replace(test.Name))
 		fmt.Fprintln(&buf, `(t *testing.T) {`)
+		if test.Partials != nil {
+			for k, v := range *test.Partials {
+				name := k + ".mustache"
+				fmt.Fprintf(&buf, "\tgeneratePartial(%#v, %#v)\n", name, v)
+				fmt.Fprintf(&buf, "\tdefer os.Remove(%#v)\n", name)
+			}
+		}
 		fmt.Fprintln(&buf, `testSpec(t,`)
 		fmt.Fprintf(&buf, "%#v,\n%#v,\n%#v", test.Template, test.Expected, test.Data)
 		// test.Expected+`, map[string]interface{}{}`+
@@ -126,12 +134,28 @@ func writeHeader(buf *bytes.Buffer) {
 	fmt.Fprintln(buf)
 	fmt.Fprintln(buf)
 	fmt.Fprintln(buf, `import (
+	"os"
 	"strings"
 	"testing"
 )
 
 func convertHTMLCharsToExpectedFormat(s string) string {
 	return strings.Replace(s, "&#34;", "&quot;", -1)
+}
+
+func generatePartial(name string, content string) {
+	fo, err := os.Create(name)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := fo.Close(); err != nil {
+			panic(err)
+		}
+	}()
+	if _, err := fo.Write([]byte(content)); err != nil {
+		panic(err)
+	}
 }
 
 func testSpec(t *testing.T,

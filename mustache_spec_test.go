@@ -3,12 +3,28 @@
 package mustache
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
 
 func convertHTMLCharsToExpectedFormat(s string) string {
 	return strings.Replace(s, "&#34;", "&quot;", -1)
+}
+
+func generatePartial(name string, content string) {
+	fo, err := os.Create(name)
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		if err := fo.Close(); err != nil {
+			panic(err)
+		}
+	}()
+	if _, err := fo.Write([]byte(content)); err != nil {
+		panic(err)
+	}
 }
 
 func testSpec(t *testing.T,
@@ -96,6 +112,108 @@ func TestCommentsSurroundingWhitespace(t *testing.T) {
 	testSpec(t,
 		"12345 {{! Comment Block! }} 67890",
 		"12345  67890",
+		map[string]interface{}{})
+}
+
+func TestDelimitersPairBehavior(t *testing.T) {
+	testSpec(t,
+		"{{=<% %>=}}(<%text%>)",
+		"(Hey!)",
+		map[string]interface{}{"text": "Hey!"})
+}
+
+func TestDelimitersSpecialCharacters(t *testing.T) {
+	testSpec(t,
+		"({{=[ ]=}}[text])",
+		"(It worked!)",
+		map[string]interface{}{"text": "It worked!"})
+}
+
+func TestDelimitersSections(t *testing.T) {
+	testSpec(t,
+		"[\n{{#section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|#section|\n  {{data}}\n  |data|\n|/section|\n]\n",
+		"[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n",
+		map[string]interface{}{"section": true, "data": "I got interpolated."})
+}
+
+func TestDelimitersInvertedSections(t *testing.T) {
+	testSpec(t,
+		"[\n{{^section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|^section|\n  {{data}}\n  |data|\n|/section|\n]\n",
+		"[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n",
+		map[string]interface{}{"section": false, "data": "I got interpolated."})
+}
+
+func TestDelimitersPartialInheritence(t *testing.T) {
+	generatePartial("include.mustache", ".{{value}}.")
+	defer os.Remove("include.mustache")
+	testSpec(t,
+		"[ {{>include}} ]\n{{= | | =}}\n[ |>include| ]\n",
+		"[ .yes. ]\n[ .yes. ]\n",
+		map[string]interface{}{"value": "yes"})
+}
+
+func TestDelimitersPostPartialBehavior(t *testing.T) {
+	generatePartial("include.mustache", ".{{value}}. {{= | | =}} .|value|.")
+	defer os.Remove("include.mustache")
+	testSpec(t,
+		"[ {{>include}} ]\n[ .{{value}}.  .|value|. ]\n",
+		"[ .yes.  .yes. ]\n[ .yes.  .|value|. ]\n",
+		map[string]interface{}{"value": "yes"})
+}
+
+func TestDelimitersSurroundingWhitespace(t *testing.T) {
+	testSpec(t,
+		"| {{=@ @=}} |",
+		"|  |",
+		map[string]interface{}{})
+}
+
+func TestDelimitersOutlyingWhitespaceInline(t *testing.T) {
+	testSpec(t,
+		" | {{=@ @=}}\n",
+		" | \n",
+		map[string]interface{}{})
+}
+
+func TestDelimitersStandaloneTag(t *testing.T) {
+	testSpec(t,
+		"Begin.\n{{=@ @=}}\nEnd.\n",
+		"Begin.\nEnd.\n",
+		map[string]interface{}{})
+}
+
+func TestDelimitersIndentedStandaloneTag(t *testing.T) {
+	testSpec(t,
+		"Begin.\n  {{=@ @=}}\nEnd.\n",
+		"Begin.\nEnd.\n",
+		map[string]interface{}{})
+}
+
+func TestDelimitersStandaloneLineEndings(t *testing.T) {
+	testSpec(t,
+		"|\r\n{{= @ @ =}}\r\n|",
+		"|\r\n|",
+		map[string]interface{}{})
+}
+
+func TestDelimitersStandaloneWithoutPreviousLine(t *testing.T) {
+	testSpec(t,
+		"  {{=@ @=}}\n=",
+		"=",
+		map[string]interface{}{})
+}
+
+func TestDelimitersStandaloneWithoutNewline(t *testing.T) {
+	testSpec(t,
+		"=\n  {{=@ @=}}",
+		"=\n",
+		map[string]interface{}{})
+}
+
+func TestDelimitersPairwithPadding(t *testing.T) {
+	testSpec(t,
+		"|{{= @   @ =}}|",
+		"||",
 		map[string]interface{}{})
 }
 

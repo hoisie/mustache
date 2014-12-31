@@ -203,6 +203,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 				tmpl.otag = newtags[0]
 				tmpl.ctag = newtags[1]
 			}
+			handleStandaloneLine(section.elems, tmpl, potentialStandalone)
 		case '{':
 			if tag[len(tag)-1] == '}' {
 				//use a raw tag
@@ -291,6 +292,7 @@ func (tmpl *Template) parse() error {
 				tmpl.otag = newtags[0]
 				tmpl.ctag = newtags[1]
 			}
+			handleStandaloneLine(tmpl.elems, tmpl, potentialStandalone)
 		case '{':
 			//use a raw tag
 			if tag[len(tag)-1] == '}' {
