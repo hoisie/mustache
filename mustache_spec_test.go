@@ -427,6 +427,153 @@ func TestInterpolationAmpersandWithPadding(t *testing.T) {
 		map[string]interface{}{"string": "---"})
 }
 
+func TestInvertedFalsey(t *testing.T) {
+	testSpec(t,
+		"\"{{^boolean}}This should be rendered.{{/boolean}}\"",
+		"\"This should be rendered.\"",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestInvertedTruthy(t *testing.T) {
+	testSpec(t,
+		"\"{{^boolean}}This should not be rendered.{{/boolean}}\"",
+		"\"\"",
+		map[string]interface{}{"boolean": true})
+}
+
+func TestInvertedContext(t *testing.T) {
+	testSpec(t,
+		"\"{{^context}}Hi {{name}}.{{/context}}\"",
+		"\"\"",
+		map[string]interface{}{"context": map[string]interface{}{"name": "Joe"}})
+}
+
+func TestInvertedList(t *testing.T) {
+	testSpec(t,
+		"\"{{^list}}{{n}}{{/list}}\"",
+		"\"\"",
+		map[string]interface{}{"list": []interface{}{map[string]interface{}{"n": 1}, map[string]interface{}{"n": 2}, map[string]interface{}{"n": 3}}})
+}
+
+func TestInvertedEmptyList(t *testing.T) {
+	testSpec(t,
+		"\"{{^list}}Yay lists!{{/list}}\"",
+		"\"Yay lists!\"",
+		map[string]interface{}{"list": []interface{}{}})
+}
+
+func TestInvertedDoubled(t *testing.T) {
+	testSpec(t,
+		"{{^bool}}\n* first\n{{/bool}}\n* {{two}}\n{{^bool}}\n* third\n{{/bool}}\n",
+		"* first\n* second\n* third\n",
+		map[string]interface{}{"two": "second", "bool": false})
+}
+
+func TestInvertedNestedFalsey(t *testing.T) {
+	testSpec(t,
+		"| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |",
+		"| A B C D E |",
+		map[string]interface{}{"bool": false})
+}
+
+func TestInvertedNestedTruthy(t *testing.T) {
+	testSpec(t,
+		"| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |",
+		"| A  E |",
+		map[string]interface{}{"bool": true})
+}
+
+func TestInvertedContextMisses(t *testing.T) {
+	testSpec(t,
+		"[{{^missing}}Cannot find key 'missing'!{{/missing}}]",
+		"[Cannot find key 'missing'!]",
+		map[string]interface{}{})
+}
+
+func TestInvertedDottedNamesTruthy(t *testing.T) {
+	testSpec(t,
+		"\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"\"",
+		"\"\" == \"\"",
+		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": true}}})
+}
+
+func TestInvertedDottedNamesFalsey(t *testing.T) {
+	testSpec(t,
+		"\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\"",
+		"\"Not Here\" == \"Not Here\"",
+		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": false}}})
+}
+
+func TestInvertedDottedNamesBrokenChains(t *testing.T) {
+	testSpec(t,
+		"\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\"",
+		"\"Not Here\" == \"Not Here\"",
+		map[string]interface{}{"a": map[string]interface{}{}})
+}
+
+func TestInvertedSurroundingWhitespace(t *testing.T) {
+	testSpec(t,
+		" | {{^boolean}}\t|\t{{/boolean}} | \n",
+		" | \t|\t | \n",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestInvertedInternalWhitespace(t *testing.T) {
+	testSpec(t,
+		" | {{^boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n",
+		" |  \n  | \n",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestInvertedIndentedInlineSections(t *testing.T) {
+	testSpec(t,
+		" {{^boolean}}NO{{/boolean}}\n {{^boolean}}WAY{{/boolean}}\n",
+		" NO\n WAY\n",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestInvertedStandaloneLines(t *testing.T) {
+	testSpec(t,
+		"| This Is\n{{^boolean}}\n|\n{{/boolean}}\n| A Line\n",
+		"| This Is\n|\n| A Line\n",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestInvertedStandaloneIndentedLines(t *testing.T) {
+	testSpec(t,
+		"| This Is\n  {{^boolean}}\n|\n  {{/boolean}}\n| A Line\n",
+		"| This Is\n|\n| A Line\n",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestInvertedStandaloneLineEndings(t *testing.T) {
+	testSpec(t,
+		"|\r\n{{^boolean}}\r\n{{/boolean}}\r\n|",
+		"|\r\n|",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestInvertedStandaloneWithoutPreviousLine(t *testing.T) {
+	testSpec(t,
+		"  {{^boolean}}\n^{{/boolean}}\n/",
+		"^\n/",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestInvertedStandaloneWithoutNewline(t *testing.T) {
+	testSpec(t,
+		"^{{^boolean}}\n/\n  {{/boolean}}",
+		"^\n/\n",
+		map[string]interface{}{"boolean": false})
+}
+
+func TestInvertedPadding(t *testing.T) {
+	testSpec(t,
+		"|{{^ boolean }}={{/ boolean }}|",
+		"|=|",
+		map[string]interface{}{"boolean": false})
+}
+
 func TestSectionsTruthy(t *testing.T) {
 	testSpec(t,
 		"\"{{#boolean}}This should be rendered.{{/boolean}}\"",

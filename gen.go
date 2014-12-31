@@ -37,7 +37,7 @@ var supportedSpecNames = []string{
 	"comments",
 	"delimiters",
 	"interpolation",
-	// "inverted",
+	"inverted",
 	// "partials",
 	"sections",
 	// "lambdas",
