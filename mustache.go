@@ -2,7 +2,6 @@ package mustache
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -12,6 +11,15 @@ import (
 	"reflect"
 	"strings"
 )
+
+// environment is used to provide an environment and symbol table for recursive partials
+type environment struct {
+	partials map[string]*Template
+}
+
+func newEnvironment() environment {
+	return environment{make(map[string]*Template)}
+}
 
 type textElement struct {
 	text []byte
@@ -30,13 +38,14 @@ type sectionElement struct {
 }
 
 type Template struct {
-	data    string
-	otag    string
-	ctag    string
-	p       int
-	curline int
-	dir     string
-	elems   []interface{}
+	data        string
+	otag        string
+	ctag        string
+	p           int
+	curline     int
+	dir         string
+	elems       []interface{}
+	environment environment
 }
 
 type parseError struct {
@@ -96,7 +105,15 @@ func (tmpl *Template) readString(s string) (string, error) {
 	return "", nil
 }
 
-func (tmpl *Template) parsePartial(name string) (*Template, error) {
+func (tmpl *Template) lookupPartial(name string) *Template {
+	result, ok := tmpl.environment.partials[name]
+	if ok {
+		return result
+	}
+	return nil
+}
+
+func (tmpl *Template) parsePartial(name string, indent string) (*Template, error) {
 	filenames := []string{
 		path.Join(tmpl.dir, name),
 		path.Join(tmpl.dir, name+".mustache"),
@@ -115,16 +132,54 @@ func (tmpl *Template) parsePartial(name string) (*Template, error) {
 		}
 	}
 	if filename == "" {
-		return nil, errors.New(fmt.Sprintf("Could not find partial %q", name))
+		return ParseString("")
 	}
 
-	partial, err := ParseFile(filename)
+	partial, err := parseFile(filename, indent, tmpl.environment)
 
 	if err != nil {
 		return nil, err
 	}
 
+	if len(indent) > 0 {
+		partial.applyIndent(indent)
+	}
+
 	return partial, nil
+}
+
+func (tmpl *Template) applyIndent(indent string) {
+	lastWasStandalone := false
+	for i, element := range tmpl.elems {
+		lastElement := i == len(tmpl.elems)-1
+		switch elem := element.(type) {
+		case *textElement:
+			indentText(elem, indent, lastWasStandalone, lastElement)
+			lastWasStandalone = false
+		case *varElement:
+			lastWasStandalone = true
+		case *sectionElement:
+		case *Template:
+			elem.applyIndent(indent)
+		}
+	}
+}
+
+func indentText(elem *textElement, indent string, lastWasStandalone bool, lastElement bool) {
+	var buf bytes.Buffer
+	if !lastWasStandalone {
+		buf.Write([]byte(indent))
+	}
+	oldBuf := elem.text
+	n := len(oldBuf) - 1
+	for i := 0; i < len(oldBuf); i++ {
+		buf.Write([]byte{oldBuf[i]})
+		if oldBuf[i] == '\n' && (i != n || !lastElement) {
+			buf.Write([]byte(indent))
+		}
+	}
+
+	elem.text = buf.Bytes()
 }
 
 func (tmpl *Template) parseSection(section *sectionElement) error {
@@ -188,10 +243,16 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 			}
 		case '>':
 			name := strings.TrimSpace(tag[1:])
-			partial, err := tmpl.parsePartial(name)
-			if err != nil {
-				return err
+			indent := handleStandaloneLine(tmpl.elems, tmpl, potentialStandalone)
+			partial := tmpl.lookupPartial(name)
+
+			if partial == nil {
+				partial, err = tmpl.parsePartial(name, indent)
+				if err != nil {
+					return err
+				}
 			}
+
 			section.elems = append(section.elems, partial)
 		case '=':
 			if tag[len(tag)-1] != '=' {
@@ -277,10 +338,16 @@ func (tmpl *Template) parse() error {
 			return parseError{tmpl.curline, "unmatched close tag"}
 		case '>':
 			name := strings.TrimSpace(tag[1:])
-			partial, err := tmpl.parsePartial(name)
-			if err != nil {
-				return err
+			indent := handleStandaloneLine(tmpl.elems, tmpl, potentialStandalone)
+			partial := tmpl.lookupPartial(name)
+
+			if partial == nil {
+				partial, err = tmpl.parsePartial(name, indent)
+				if err != nil {
+					return err
+				}
 			}
+
 			tmpl.elems = append(tmpl.elems, partial)
 		case '=':
 			if tag[len(tag)-1] != '=' {
@@ -308,27 +375,44 @@ func (tmpl *Template) parse() error {
 	return nil
 }
 
-func handleStandaloneLine(elems []interface{}, tmpl *Template, potentialStandalone bool) {
+func handleStandaloneLine(elems []interface{}, tmpl *Template, potentialStandalone bool) string {
 	if potentialStandalone {
 		followingNewLine := tmpl.peekNewLine()
 		if followingNewLine != -1 {
 			tmpl.p += followingNewLine
-			removeIndentIfNecessary(elems)
+			return removeIndentIfNecessary(elems)
 		}
 	}
+	return ""
 }
 
-func removeIndentIfNecessary(elems []interface{}) {
+func removeIndentIfNecessary(elems []interface{}) string {
 	if len(elems) > 0 {
 		index := len(elems) - 1
 		switch elems[index].(type) {
 		case *textElement:
 			{
 				old := elems[index].(*textElement)
-				elems[index] = &textElement{[]byte(strings.TrimRight(string(old.text), " \t"))}
+				newText, removed := removeTrailingIndent(string(old.text))
+				elems[index] = &textElement{[]byte(newText)}
+				return removed
 			}
 		}
 	}
+	return ""
+}
+
+func removeTrailingIndent(s string) (string, string) {
+	removed := ""
+	for i := len(s) - 1; i >= 0; {
+		if s[i] == ' ' || s[i] == '\t' {
+			removed = string(s[i]) + removed
+			i--
+			continue
+		}
+		return s[0 : i+1], removed
+	}
+	return "", s
 }
 
 func (tmpl *Template) isEndOfData() bool {
@@ -609,7 +693,7 @@ func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) s
 
 func ParseString(data string) (*Template, error) {
 	cwd := os.Getenv("CWD")
-	tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}}
+	tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}, newEnvironment()}
 	err := tmpl.parse()
 
 	if err != nil {
@@ -620,6 +704,10 @@ func ParseString(data string) (*Template, error) {
 }
 
 func ParseFile(filename string) (*Template, error) {
+	return parseFile(filename, "", newEnvironment())
+}
+
+func parseFile(filename string, indent string, environment environment) (*Template, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -627,7 +715,13 @@ func ParseFile(filename string) (*Template, error) {
 
 	dirname, _ := path.Split(filename)
 
-	tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}}
+	basename := path.Base(filename)
+	ext := path.Ext(filename)
+
+	name := basename[0 : len(basename)-len(ext)]
+
+	tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}, environment}
+	tmpl.environment.partials[name] = &tmpl
 	err = tmpl.parse()
 
 	if err != nil {

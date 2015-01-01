@@ -574,6 +574,103 @@ func TestInvertedPadding(t *testing.T) {
 		map[string]interface{}{"boolean": false})
 }
 
+func TestPartialsBasicBehavior(t *testing.T) {
+	generatePartial("text.mustache", "from partial")
+	defer os.Remove("text.mustache")
+	testSpec(t,
+		"\"{{>text}}\"",
+		"\"from partial\"",
+		map[string]interface{}{})
+}
+
+func TestPartialsFailedLookup(t *testing.T) {
+	testSpec(t,
+		"\"{{>text}}\"",
+		"\"\"",
+		map[string]interface{}{})
+}
+
+func TestPartialsContext(t *testing.T) {
+	generatePartial("partial.mustache", "*{{text}}*")
+	defer os.Remove("partial.mustache")
+	testSpec(t,
+		"\"{{>partial}}\"",
+		"\"*content*\"",
+		map[string]interface{}{"text": "content"})
+}
+
+func TestPartialsRecursion(t *testing.T) {
+	generatePartial("node.mustache", "{{content}}<{{#nodes}}{{>node}}{{/nodes}}>")
+	defer os.Remove("node.mustache")
+	testSpec(t,
+		"{{>node}}",
+		"X<Y<>>",
+		map[string]interface{}{"content": "X", "nodes": []interface{}{map[string]interface{}{"nodes": []interface{}{}, "content": "Y"}}})
+}
+
+func TestPartialsSurroundingWhitespace(t *testing.T) {
+	generatePartial("partial.mustache", "\t|\t")
+	defer os.Remove("partial.mustache")
+	testSpec(t,
+		"| {{>partial}} |",
+		"| \t|\t |",
+		map[string]interface{}{})
+}
+
+func TestPartialsInlineIndentation(t *testing.T) {
+	generatePartial("partial.mustache", ">\n>")
+	defer os.Remove("partial.mustache")
+	testSpec(t,
+		"  {{data}}  {{> partial}}\n",
+		"  |  >\n>\n",
+		map[string]interface{}{"data": "|"})
+}
+
+func TestPartialsStandaloneLineEndings(t *testing.T) {
+	generatePartial("partial.mustache", ">")
+	defer os.Remove("partial.mustache")
+	testSpec(t,
+		"|\r\n{{>partial}}\r\n|",
+		"|\r\n>|",
+		map[string]interface{}{})
+}
+
+func TestPartialsStandaloneWithoutPreviousLine(t *testing.T) {
+	generatePartial("partial.mustache", ">\n>")
+	defer os.Remove("partial.mustache")
+	testSpec(t,
+		"  {{>partial}}\n>",
+		"  >\n  >>",
+		map[string]interface{}{})
+}
+
+func TestPartialsStandaloneWithoutNewline(t *testing.T) {
+	generatePartial("partial.mustache", ">\n>")
+	defer os.Remove("partial.mustache")
+	testSpec(t,
+		">\n  {{>partial}}",
+		">\n  >\n  >",
+		map[string]interface{}{})
+}
+
+func TestPartialsStandaloneIndentation(t *testing.T) {
+	generatePartial("partial.mustache", "|\n{{{content}}}\n|\n")
+	defer os.Remove("partial.mustache")
+	testSpec(t,
+		"\\\n {{>partial}}\n/\n",
+		"\\\n |\n <\n->\n |\n/\n",
+		map[string]interface{}{"content": "<\n->"})
+}
+
+func TestPartialsPaddingWhitespace(t *testing.T) {
+	generatePartial("partial.mustache", "[]")
+	defer os.Remove("partial.mustache")
+	testSpec(t,
+		"|{{> partial }}|",
+		"|[]|",
+		map[string]interface{}{"boolean": true})
+}
+
 func TestSectionsTruthy(t *testing.T) {
 	testSpec(t,
 		"\"{{#boolean}}This should be rendered.{{/boolean}}\"",

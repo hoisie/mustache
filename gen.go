@@ -38,7 +38,7 @@ var supportedSpecNames = []string{
 	"delimiters",
 	"interpolation",
 	"inverted",
-	// "partials",
+	"partials",
 	"sections",
 	// "lambdas",
 }
