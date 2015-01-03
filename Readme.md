@@ -109,4 +109,9 @@ It'll be blank. You either have to use `&Person{"John", "Smith"}`, or call `Name
 * Sections (boolean, enumerable, and inverted)
 * Partials
 
+## Development
 
+```
+> git submodule update --init
+> go test
+```
