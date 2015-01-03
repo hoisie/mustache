@@ -1,10 +1,15 @@
+.PHONY: generate format test
 
-GOFMT=gofmt -s -tabs=false -tabwidth=4
+GOFMT=gofmt -s
 
-GOFILES=\
-	mustache.go\
+all: format test
 
 format:
-	${GOFMT} -w ${GOFILES}
-	${GOFMT} -w mustache_test.go 
+	${GOFMT} -w *.go
 
+test:
+	go test
+
+generate:
+	go generate
+	${GOFMT} -w mustache_spec_test.go
