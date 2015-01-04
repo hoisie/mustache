@@ -4,6 +4,7 @@ package mustache
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -39,809 +40,912 @@ func testSpec(t *testing.T,
 }
 
 func TestCommentsInline(t *testing.T) {
-	testSpec(t,
-		"12345{{! Comment Block! }}67890",
-		"1234567890",
-		map[string]interface{}{})
+	template := "12345{{! Comment Block! }}67890"
+	expected := "1234567890"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsMultiline(t *testing.T) {
-	testSpec(t,
-		"12345{{!\n  This is a\n  multi-line comment...\n}}67890\n",
-		"1234567890\n",
-		map[string]interface{}{})
+	template := "12345{{!\n  This is a\n  multi-line comment...\n}}67890\n"
+	expected := "1234567890\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsStandalone(t *testing.T) {
-	testSpec(t,
-		"Begin.\n{{! Comment Block! }}\nEnd.\n",
-		"Begin.\nEnd.\n",
-		map[string]interface{}{})
+	template := "Begin.\n{{! Comment Block! }}\nEnd.\n"
+	expected := "Begin.\nEnd.\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsIndentedStandalone(t *testing.T) {
-	testSpec(t,
-		"Begin.\n  {{! Indented Comment Block! }}\nEnd.\n",
-		"Begin.\nEnd.\n",
-		map[string]interface{}{})
+	template := "Begin.\n  {{! Indented Comment Block! }}\nEnd.\n"
+	expected := "Begin.\nEnd.\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsStandaloneLineEndings(t *testing.T) {
-	testSpec(t,
-		"|\r\n{{! Standalone Comment }}\r\n|",
-		"|\r\n|",
-		map[string]interface{}{})
+	template := "|\r\n{{! Standalone Comment }}\r\n|"
+	expected := "|\r\n|"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsStandaloneWithoutPreviousLine(t *testing.T) {
-	testSpec(t,
-		"  {{! I'm Still Standalone }}\n!",
-		"!",
-		map[string]interface{}{})
+	template := "  {{! I'm Still Standalone }}\n!"
+	expected := "!"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsStandaloneWithoutNewline(t *testing.T) {
-	testSpec(t,
-		"!\n  {{! I'm Still Standalone }}",
-		"!\n",
-		map[string]interface{}{})
+	template := "!\n  {{! I'm Still Standalone }}"
+	expected := "!\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsMultilineStandalone(t *testing.T) {
-	testSpec(t,
-		"Begin.\n{{!\nSomething's going on here...\n}}\nEnd.\n",
-		"Begin.\nEnd.\n",
-		map[string]interface{}{})
+	template := "Begin.\n{{!\nSomething's going on here...\n}}\nEnd.\n"
+	expected := "Begin.\nEnd.\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsIndentedMultilineStandalone(t *testing.T) {
-	testSpec(t,
-		"Begin.\n  {{!\n    Something's going on here...\n  }}\nEnd.\n",
-		"Begin.\nEnd.\n",
-		map[string]interface{}{})
+	template := "Begin.\n  {{!\n    Something's going on here...\n  }}\nEnd.\n"
+	expected := "Begin.\nEnd.\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsIndentedInline(t *testing.T) {
-	testSpec(t,
-		"  12 {{! 34 }}\n",
-		"  12 \n",
-		map[string]interface{}{})
+	template := "  12 {{! 34 }}\n"
+	expected := "  12 \n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestCommentsSurroundingWhitespace(t *testing.T) {
-	testSpec(t,
-		"12345 {{! Comment Block! }} 67890",
-		"12345  67890",
-		map[string]interface{}{})
+	template := "12345 {{! Comment Block! }} 67890"
+	expected := "12345  67890"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersPairBehavior(t *testing.T) {
-	testSpec(t,
-		"{{=<% %>=}}(<%text%>)",
-		"(Hey!)",
-		map[string]interface{}{"text": "Hey!"})
+	template := "{{=<% %>=}}(<%text%>)"
+	expected := "(Hey!)"
+	context := map[string]interface{}{"text": "Hey!"}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersSpecialCharacters(t *testing.T) {
-	testSpec(t,
-		"({{=[ ]=}}[text])",
-		"(It worked!)",
-		map[string]interface{}{"text": "It worked!"})
+	template := "({{=[ ]=}}[text])"
+	expected := "(It worked!)"
+	context := map[string]interface{}{"text": "It worked!"}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersSections(t *testing.T) {
-	testSpec(t,
-		"[\n{{#section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|#section|\n  {{data}}\n  |data|\n|/section|\n]\n",
-		"[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n",
-		map[string]interface{}{"section": true, "data": "I got interpolated."})
+	template := "[\n{{#section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|#section|\n  {{data}}\n  |data|\n|/section|\n]\n"
+	expected := "[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n"
+	context := map[string]interface{}{"section": true, "data": "I got interpolated."}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersInvertedSections(t *testing.T) {
-	testSpec(t,
-		"[\n{{^section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|^section|\n  {{data}}\n  |data|\n|/section|\n]\n",
-		"[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n",
-		map[string]interface{}{"section": false, "data": "I got interpolated."})
+	template := "[\n{{^section}}\n  {{data}}\n  |data|\n{{/section}}\n\n{{= | | =}}\n|^section|\n  {{data}}\n  |data|\n|/section|\n]\n"
+	expected := "[\n  I got interpolated.\n  |data|\n\n  {{data}}\n  I got interpolated.\n]\n"
+	context := map[string]interface{}{"section": false, "data": "I got interpolated."}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersPartialInheritence(t *testing.T) {
 	generatePartial("include.mustache", ".{{value}}.")
 	defer os.Remove("include.mustache")
-	testSpec(t,
-		"[ {{>include}} ]\n{{= | | =}}\n[ |>include| ]\n",
-		"[ .yes. ]\n[ .yes. ]\n",
-		map[string]interface{}{"value": "yes"})
+	template := "[ {{>include}} ]\n{{= | | =}}\n[ |>include| ]\n"
+	expected := "[ .yes. ]\n[ .yes. ]\n"
+	context := map[string]interface{}{"value": "yes"}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersPostPartialBehavior(t *testing.T) {
 	generatePartial("include.mustache", ".{{value}}. {{= | | =}} .|value|.")
 	defer os.Remove("include.mustache")
-	testSpec(t,
-		"[ {{>include}} ]\n[ .{{value}}.  .|value|. ]\n",
-		"[ .yes.  .yes. ]\n[ .yes.  .|value|. ]\n",
-		map[string]interface{}{"value": "yes"})
+	template := "[ {{>include}} ]\n[ .{{value}}.  .|value|. ]\n"
+	expected := "[ .yes.  .yes. ]\n[ .yes.  .|value|. ]\n"
+	context := map[string]interface{}{"value": "yes"}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersSurroundingWhitespace(t *testing.T) {
-	testSpec(t,
-		"| {{=@ @=}} |",
-		"|  |",
-		map[string]interface{}{})
+	template := "| {{=@ @=}} |"
+	expected := "|  |"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersOutlyingWhitespaceInline(t *testing.T) {
-	testSpec(t,
-		" | {{=@ @=}}\n",
-		" | \n",
-		map[string]interface{}{})
+	template := " | {{=@ @=}}\n"
+	expected := " | \n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersStandaloneTag(t *testing.T) {
-	testSpec(t,
-		"Begin.\n{{=@ @=}}\nEnd.\n",
-		"Begin.\nEnd.\n",
-		map[string]interface{}{})
+	template := "Begin.\n{{=@ @=}}\nEnd.\n"
+	expected := "Begin.\nEnd.\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersIndentedStandaloneTag(t *testing.T) {
-	testSpec(t,
-		"Begin.\n  {{=@ @=}}\nEnd.\n",
-		"Begin.\nEnd.\n",
-		map[string]interface{}{})
+	template := "Begin.\n  {{=@ @=}}\nEnd.\n"
+	expected := "Begin.\nEnd.\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersStandaloneLineEndings(t *testing.T) {
-	testSpec(t,
-		"|\r\n{{= @ @ =}}\r\n|",
-		"|\r\n|",
-		map[string]interface{}{})
+	template := "|\r\n{{= @ @ =}}\r\n|"
+	expected := "|\r\n|"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersStandaloneWithoutPreviousLine(t *testing.T) {
-	testSpec(t,
-		"  {{=@ @=}}\n=",
-		"=",
-		map[string]interface{}{})
+	template := "  {{=@ @=}}\n="
+	expected := "="
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersStandaloneWithoutNewline(t *testing.T) {
-	testSpec(t,
-		"=\n  {{=@ @=}}",
-		"=\n",
-		map[string]interface{}{})
+	template := "=\n  {{=@ @=}}"
+	expected := "=\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestDelimitersPairwithPadding(t *testing.T) {
-	testSpec(t,
-		"|{{= @   @ =}}|",
-		"||",
-		map[string]interface{}{})
+	template := "|{{= @   @ =}}|"
+	expected := "||"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationNoInterpolation(t *testing.T) {
-	testSpec(t,
-		"Hello from {Mustache}!\n",
-		"Hello from {Mustache}!\n",
-		map[string]interface{}{})
+	template := "Hello from {Mustache}!\n"
+	expected := "Hello from {Mustache}!\n"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationBasicInterpolation(t *testing.T) {
-	testSpec(t,
-		"Hello, {{subject}}!\n",
-		"Hello, world!\n",
-		map[string]interface{}{"subject": "world"})
+	template := "Hello, {{subject}}!\n"
+	expected := "Hello, world!\n"
+	context := map[string]interface{}{"subject": "world"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationHTMLEscaping(t *testing.T) {
-	testSpec(t,
-		"These characters should be HTML escaped: {{forbidden}}\n",
-		"These characters should be HTML escaped: &amp; &quot; &lt; &gt;\n",
-		map[string]interface{}{"forbidden": "& \" < >"})
+	template := "These characters should be HTML escaped: {{forbidden}}\n"
+	expected := "These characters should be HTML escaped: &amp; &quot; &lt; &gt;\n"
+	context := map[string]interface{}{"forbidden": "& \" < >"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationTripleMustache(t *testing.T) {
-	testSpec(t,
-		"These characters should not be HTML escaped: {{{forbidden}}}\n",
-		"These characters should not be HTML escaped: & \" < >\n",
-		map[string]interface{}{"forbidden": "& \" < >"})
+	template := "These characters should not be HTML escaped: {{{forbidden}}}\n"
+	expected := "These characters should not be HTML escaped: & \" < >\n"
+	context := map[string]interface{}{"forbidden": "& \" < >"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationAmpersand(t *testing.T) {
-	testSpec(t,
-		"These characters should not be HTML escaped: {{&forbidden}}\n",
-		"These characters should not be HTML escaped: & \" < >\n",
-		map[string]interface{}{"forbidden": "& \" < >"})
+	template := "These characters should not be HTML escaped: {{&forbidden}}\n"
+	expected := "These characters should not be HTML escaped: & \" < >\n"
+	context := map[string]interface{}{"forbidden": "& \" < >"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationBasicIntegerInterpolation(t *testing.T) {
-	testSpec(t,
-		"\"{{mph}} miles an hour!\"",
-		"\"85 miles an hour!\"",
-		map[string]interface{}{"mph": 85})
+	template := "\"{{mph}} miles an hour!\""
+	expected := "\"85 miles an hour!\""
+	context := map[string]interface{}{"mph": 85}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationTripleMustacheIntegerInterpolation(t *testing.T) {
-	testSpec(t,
-		"\"{{{mph}}} miles an hour!\"",
-		"\"85 miles an hour!\"",
-		map[string]interface{}{"mph": 85})
+	template := "\"{{{mph}}} miles an hour!\""
+	expected := "\"85 miles an hour!\""
+	context := map[string]interface{}{"mph": 85}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationAmpersandIntegerInterpolation(t *testing.T) {
-	testSpec(t,
-		"\"{{&mph}} miles an hour!\"",
-		"\"85 miles an hour!\"",
-		map[string]interface{}{"mph": 85})
+	template := "\"{{&mph}} miles an hour!\""
+	expected := "\"85 miles an hour!\""
+	context := map[string]interface{}{"mph": 85}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationBasicDecimalInterpolation(t *testing.T) {
-	testSpec(t,
-		"\"{{power}} jiggawatts!\"",
-		"\"1.21 jiggawatts!\"",
-		map[string]interface{}{"power": 1.21})
+	template := "\"{{power}} jiggawatts!\""
+	expected := "\"1.21 jiggawatts!\""
+	context := map[string]interface{}{"power": 1.21}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationTripleMustacheDecimalInterpolation(t *testing.T) {
-	testSpec(t,
-		"\"{{{power}}} jiggawatts!\"",
-		"\"1.21 jiggawatts!\"",
-		map[string]interface{}{"power": 1.21})
+	template := "\"{{{power}}} jiggawatts!\""
+	expected := "\"1.21 jiggawatts!\""
+	context := map[string]interface{}{"power": 1.21}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationAmpersandDecimalInterpolation(t *testing.T) {
-	testSpec(t,
-		"\"{{&power}} jiggawatts!\"",
-		"\"1.21 jiggawatts!\"",
-		map[string]interface{}{"power": 1.21})
+	template := "\"{{&power}} jiggawatts!\""
+	expected := "\"1.21 jiggawatts!\""
+	context := map[string]interface{}{"power": 1.21}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationBasicContextMissInterpolation(t *testing.T) {
-	testSpec(t,
-		"I ({{cannot}}) be seen!",
-		"I () be seen!",
-		map[string]interface{}{})
+	template := "I ({{cannot}}) be seen!"
+	expected := "I () be seen!"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationTripleMustacheContextMissInterpolation(t *testing.T) {
-	testSpec(t,
-		"I ({{{cannot}}}) be seen!",
-		"I () be seen!",
-		map[string]interface{}{})
+	template := "I ({{{cannot}}}) be seen!"
+	expected := "I () be seen!"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationAmpersandContextMissInterpolation(t *testing.T) {
-	testSpec(t,
-		"I ({{&cannot}}) be seen!",
-		"I () be seen!",
-		map[string]interface{}{})
+	template := "I ({{&cannot}}) be seen!"
+	expected := "I () be seen!"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationDottedNamesBasicInterpolation(t *testing.T) {
-	testSpec(t,
-		"\"{{person.name}}\" == \"{{#person}}{{name}}{{/person}}\"",
-		"\"Joe\" == \"Joe\"",
-		map[string]interface{}{"person": map[string]interface{}{"name": "Joe"}})
+	template := "\"{{person.name}}\" == \"{{#person}}{{name}}{{/person}}\""
+	expected := "\"Joe\" == \"Joe\""
+	context := map[string]interface{}{"person": map[string]interface{}{"name": "Joe"}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationDottedNamesTripleMustacheInterpolation(t *testing.T) {
-	testSpec(t,
-		"\"{{{person.name}}}\" == \"{{#person}}{{{name}}}{{/person}}\"",
-		"\"Joe\" == \"Joe\"",
-		map[string]interface{}{"person": map[string]interface{}{"name": "Joe"}})
+	template := "\"{{{person.name}}}\" == \"{{#person}}{{{name}}}{{/person}}\""
+	expected := "\"Joe\" == \"Joe\""
+	context := map[string]interface{}{"person": map[string]interface{}{"name": "Joe"}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationDottedNamesAmpersandInterpolation(t *testing.T) {
-	testSpec(t,
-		"\"{{&person.name}}\" == \"{{#person}}{{&name}}{{/person}}\"",
-		"\"Joe\" == \"Joe\"",
-		map[string]interface{}{"person": map[string]interface{}{"name": "Joe"}})
+	template := "\"{{&person.name}}\" == \"{{#person}}{{&name}}{{/person}}\""
+	expected := "\"Joe\" == \"Joe\""
+	context := map[string]interface{}{"person": map[string]interface{}{"name": "Joe"}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationDottedNamesArbitraryDepth(t *testing.T) {
-	testSpec(t,
-		"\"{{a.b.c.d.e.name}}\" == \"Phil\"",
-		"\"Phil\" == \"Phil\"",
-		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": map[string]interface{}{"d": map[string]interface{}{"e": map[string]interface{}{"name": "Phil"}}}}}})
+	template := "\"{{a.b.c.d.e.name}}\" == \"Phil\""
+	expected := "\"Phil\" == \"Phil\""
+	context := map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": map[string]interface{}{"d": map[string]interface{}{"e": map[string]interface{}{"name": "Phil"}}}}}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationDottedNamesBrokenChains(t *testing.T) {
-	testSpec(t,
-		"\"{{a.b.c}}\" == \"\"",
-		"\"\" == \"\"",
-		map[string]interface{}{"a": map[string]interface{}{}})
+	template := "\"{{a.b.c}}\" == \"\""
+	expected := "\"\" == \"\""
+	context := map[string]interface{}{"a": map[string]interface{}{}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationDottedNamesBrokenChainResolution(t *testing.T) {
-	testSpec(t,
-		"\"{{a.b.c.name}}\" == \"\"",
-		"\"\" == \"\"",
-		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{}}, "c": map[string]interface{}{"name": "Jim"}})
+	template := "\"{{a.b.c.name}}\" == \"\""
+	expected := "\"\" == \"\""
+	context := map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{}}, "c": map[string]interface{}{"name": "Jim"}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationDottedNamesInitialResolution(t *testing.T) {
-	testSpec(t,
-		"\"{{#a}}{{b.c.d.e.name}}{{/a}}\" == \"Phil\"",
-		"\"Phil\" == \"Phil\"",
-		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": map[string]interface{}{"d": map[string]interface{}{"e": map[string]interface{}{"name": "Phil"}}}}}, "b": map[string]interface{}{"c": map[string]interface{}{"d": map[string]interface{}{"e": map[string]interface{}{"name": "Wrong"}}}}})
+	template := "\"{{#a}}{{b.c.d.e.name}}{{/a}}\" == \"Phil\""
+	expected := "\"Phil\" == \"Phil\""
+	context := map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": map[string]interface{}{"d": map[string]interface{}{"e": map[string]interface{}{"name": "Phil"}}}}}, "b": map[string]interface{}{"c": map[string]interface{}{"d": map[string]interface{}{"e": map[string]interface{}{"name": "Wrong"}}}}}
+	testSpec(t, template, expected, context)
+}
+
+func TestInterpolationDottedNamesContextPrecedence(t *testing.T) {
+	template := "{{#a}}{{b.c}}{{/a}}"
+	expected := ""
+	context := map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{}}, "b": map[string]interface{}{"c": "ERROR"}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationInterpolationSurroundingWhitespace(t *testing.T) {
-	testSpec(t,
-		"| {{string}} |",
-		"| --- |",
-		map[string]interface{}{"string": "---"})
+	template := "| {{string}} |"
+	expected := "| --- |"
+	context := map[string]interface{}{"string": "---"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationTripleMustacheSurroundingWhitespace(t *testing.T) {
-	testSpec(t,
-		"| {{{string}}} |",
-		"| --- |",
-		map[string]interface{}{"string": "---"})
+	template := "| {{{string}}} |"
+	expected := "| --- |"
+	context := map[string]interface{}{"string": "---"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationAmpersandSurroundingWhitespace(t *testing.T) {
-	testSpec(t,
-		"| {{&string}} |",
-		"| --- |",
-		map[string]interface{}{"string": "---"})
+	template := "| {{&string}} |"
+	expected := "| --- |"
+	context := map[string]interface{}{"string": "---"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationInterpolationStandalone(t *testing.T) {
-	testSpec(t,
-		"  {{string}}\n",
-		"  ---\n",
-		map[string]interface{}{"string": "---"})
+	template := "  {{string}}\n"
+	expected := "  ---\n"
+	context := map[string]interface{}{"string": "---"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationTripleMustacheStandalone(t *testing.T) {
-	testSpec(t,
-		"  {{{string}}}\n",
-		"  ---\n",
-		map[string]interface{}{"string": "---"})
+	template := "  {{{string}}}\n"
+	expected := "  ---\n"
+	context := map[string]interface{}{"string": "---"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationAmpersandStandalone(t *testing.T) {
-	testSpec(t,
-		"  {{&string}}\n",
-		"  ---\n",
-		map[string]interface{}{"string": "---"})
+	template := "  {{&string}}\n"
+	expected := "  ---\n"
+	context := map[string]interface{}{"string": "---"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationInterpolationWithPadding(t *testing.T) {
-	testSpec(t,
-		"|{{ string }}|",
-		"|---|",
-		map[string]interface{}{"string": "---"})
+	template := "|{{ string }}|"
+	expected := "|---|"
+	context := map[string]interface{}{"string": "---"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationTripleMustacheWithPadding(t *testing.T) {
-	testSpec(t,
-		"|{{{ string }}}|",
-		"|---|",
-		map[string]interface{}{"string": "---"})
+	template := "|{{{ string }}}|"
+	expected := "|---|"
+	context := map[string]interface{}{"string": "---"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInterpolationAmpersandWithPadding(t *testing.T) {
-	testSpec(t,
-		"|{{& string }}|",
-		"|---|",
-		map[string]interface{}{"string": "---"})
+	template := "|{{& string }}|"
+	expected := "|---|"
+	context := map[string]interface{}{"string": "---"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedFalsey(t *testing.T) {
-	testSpec(t,
-		"\"{{^boolean}}This should be rendered.{{/boolean}}\"",
-		"\"This should be rendered.\"",
-		map[string]interface{}{"boolean": false})
+	template := "\"{{^boolean}}This should be rendered.{{/boolean}}\""
+	expected := "\"This should be rendered.\""
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedTruthy(t *testing.T) {
-	testSpec(t,
-		"\"{{^boolean}}This should not be rendered.{{/boolean}}\"",
-		"\"\"",
-		map[string]interface{}{"boolean": true})
+	template := "\"{{^boolean}}This should not be rendered.{{/boolean}}\""
+	expected := "\"\""
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedContext(t *testing.T) {
-	testSpec(t,
-		"\"{{^context}}Hi {{name}}.{{/context}}\"",
-		"\"\"",
-		map[string]interface{}{"context": map[string]interface{}{"name": "Joe"}})
+	template := "\"{{^context}}Hi {{name}}.{{/context}}\""
+	expected := "\"\""
+	context := map[string]interface{}{"context": map[string]interface{}{"name": "Joe"}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedList(t *testing.T) {
-	testSpec(t,
-		"\"{{^list}}{{n}}{{/list}}\"",
-		"\"\"",
-		map[string]interface{}{"list": []interface{}{map[string]interface{}{"n": 1}, map[string]interface{}{"n": 2}, map[string]interface{}{"n": 3}}})
+	template := "\"{{^list}}{{n}}{{/list}}\""
+	expected := "\"\""
+	context := map[string]interface{}{"list": []interface{}{map[string]interface{}{"n": 1}, map[string]interface{}{"n": 2}, map[string]interface{}{"n": 3}}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedEmptyList(t *testing.T) {
-	testSpec(t,
-		"\"{{^list}}Yay lists!{{/list}}\"",
-		"\"Yay lists!\"",
-		map[string]interface{}{"list": []interface{}{}})
+	template := "\"{{^list}}Yay lists!{{/list}}\""
+	expected := "\"Yay lists!\""
+	context := map[string]interface{}{"list": []interface{}{}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedDoubled(t *testing.T) {
-	testSpec(t,
-		"{{^bool}}\n* first\n{{/bool}}\n* {{two}}\n{{^bool}}\n* third\n{{/bool}}\n",
-		"* first\n* second\n* third\n",
-		map[string]interface{}{"two": "second", "bool": false})
+	template := "{{^bool}}\n* first\n{{/bool}}\n* {{two}}\n{{^bool}}\n* third\n{{/bool}}\n"
+	expected := "* first\n* second\n* third\n"
+	context := map[string]interface{}{"bool": false, "two": "second"}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedNestedFalsey(t *testing.T) {
-	testSpec(t,
-		"| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |",
-		"| A B C D E |",
-		map[string]interface{}{"bool": false})
+	template := "| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |"
+	expected := "| A B C D E |"
+	context := map[string]interface{}{"bool": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedNestedTruthy(t *testing.T) {
-	testSpec(t,
-		"| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |",
-		"| A  E |",
-		map[string]interface{}{"bool": true})
+	template := "| A {{^bool}}B {{^bool}}C{{/bool}} D{{/bool}} E |"
+	expected := "| A  E |"
+	context := map[string]interface{}{"bool": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedContextMisses(t *testing.T) {
-	testSpec(t,
-		"[{{^missing}}Cannot find key 'missing'!{{/missing}}]",
-		"[Cannot find key 'missing'!]",
-		map[string]interface{}{})
+	template := "[{{^missing}}Cannot find key 'missing'!{{/missing}}]"
+	expected := "[Cannot find key 'missing'!]"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedDottedNamesTruthy(t *testing.T) {
-	testSpec(t,
-		"\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"\"",
-		"\"\" == \"\"",
-		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": true}}})
+	template := "\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"\""
+	expected := "\"\" == \"\""
+	context := map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": true}}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedDottedNamesFalsey(t *testing.T) {
-	testSpec(t,
-		"\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\"",
-		"\"Not Here\" == \"Not Here\"",
-		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": false}}})
+	template := "\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\""
+	expected := "\"Not Here\" == \"Not Here\""
+	context := map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": false}}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedDottedNamesBrokenChains(t *testing.T) {
-	testSpec(t,
-		"\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\"",
-		"\"Not Here\" == \"Not Here\"",
-		map[string]interface{}{"a": map[string]interface{}{}})
+	template := "\"{{^a.b.c}}Not Here{{/a.b.c}}\" == \"Not Here\""
+	expected := "\"Not Here\" == \"Not Here\""
+	context := map[string]interface{}{"a": map[string]interface{}{}}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedSurroundingWhitespace(t *testing.T) {
-	testSpec(t,
-		" | {{^boolean}}\t|\t{{/boolean}} | \n",
-		" | \t|\t | \n",
-		map[string]interface{}{"boolean": false})
+	template := " | {{^boolean}}\t|\t{{/boolean}} | \n"
+	expected := " | \t|\t | \n"
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedInternalWhitespace(t *testing.T) {
-	testSpec(t,
-		" | {{^boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n",
-		" |  \n  | \n",
-		map[string]interface{}{"boolean": false})
+	template := " | {{^boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n"
+	expected := " |  \n  | \n"
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedIndentedInlineSections(t *testing.T) {
-	testSpec(t,
-		" {{^boolean}}NO{{/boolean}}\n {{^boolean}}WAY{{/boolean}}\n",
-		" NO\n WAY\n",
-		map[string]interface{}{"boolean": false})
+	template := " {{^boolean}}NO{{/boolean}}\n {{^boolean}}WAY{{/boolean}}\n"
+	expected := " NO\n WAY\n"
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedStandaloneLines(t *testing.T) {
-	testSpec(t,
-		"| This Is\n{{^boolean}}\n|\n{{/boolean}}\n| A Line\n",
-		"| This Is\n|\n| A Line\n",
-		map[string]interface{}{"boolean": false})
+	template := "| This Is\n{{^boolean}}\n|\n{{/boolean}}\n| A Line\n"
+	expected := "| This Is\n|\n| A Line\n"
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedStandaloneIndentedLines(t *testing.T) {
-	testSpec(t,
-		"| This Is\n  {{^boolean}}\n|\n  {{/boolean}}\n| A Line\n",
-		"| This Is\n|\n| A Line\n",
-		map[string]interface{}{"boolean": false})
+	template := "| This Is\n  {{^boolean}}\n|\n  {{/boolean}}\n| A Line\n"
+	expected := "| This Is\n|\n| A Line\n"
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedStandaloneLineEndings(t *testing.T) {
-	testSpec(t,
-		"|\r\n{{^boolean}}\r\n{{/boolean}}\r\n|",
-		"|\r\n|",
-		map[string]interface{}{"boolean": false})
+	template := "|\r\n{{^boolean}}\r\n{{/boolean}}\r\n|"
+	expected := "|\r\n|"
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedStandaloneWithoutPreviousLine(t *testing.T) {
-	testSpec(t,
-		"  {{^boolean}}\n^{{/boolean}}\n/",
-		"^\n/",
-		map[string]interface{}{"boolean": false})
+	template := "  {{^boolean}}\n^{{/boolean}}\n/"
+	expected := "^\n/"
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedStandaloneWithoutNewline(t *testing.T) {
-	testSpec(t,
-		"^{{^boolean}}\n/\n  {{/boolean}}",
-		"^\n/\n",
-		map[string]interface{}{"boolean": false})
+	template := "^{{^boolean}}\n/\n  {{/boolean}}"
+	expected := "^\n/\n"
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestInvertedPadding(t *testing.T) {
-	testSpec(t,
-		"|{{^ boolean }}={{/ boolean }}|",
-		"|=|",
-		map[string]interface{}{"boolean": false})
+	template := "|{{^ boolean }}={{/ boolean }}|"
+	expected := "|=|"
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsBasicBehavior(t *testing.T) {
 	generatePartial("text.mustache", "from partial")
 	defer os.Remove("text.mustache")
-	testSpec(t,
-		"\"{{>text}}\"",
-		"\"from partial\"",
-		map[string]interface{}{})
+	template := "\"{{>text}}\""
+	expected := "\"from partial\""
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsFailedLookup(t *testing.T) {
-	testSpec(t,
-		"\"{{>text}}\"",
-		"\"\"",
-		map[string]interface{}{})
+	template := "\"{{>text}}\""
+	expected := "\"\""
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsContext(t *testing.T) {
 	generatePartial("partial.mustache", "*{{text}}*")
 	defer os.Remove("partial.mustache")
-	testSpec(t,
-		"\"{{>partial}}\"",
-		"\"*content*\"",
-		map[string]interface{}{"text": "content"})
+	template := "\"{{>partial}}\""
+	expected := "\"*content*\""
+	context := map[string]interface{}{"text": "content"}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsRecursion(t *testing.T) {
 	generatePartial("node.mustache", "{{content}}<{{#nodes}}{{>node}}{{/nodes}}>")
 	defer os.Remove("node.mustache")
-	testSpec(t,
-		"{{>node}}",
-		"X<Y<>>",
-		map[string]interface{}{"content": "X", "nodes": []interface{}{map[string]interface{}{"nodes": []interface{}{}, "content": "Y"}}})
+	template := "{{>node}}"
+	expected := "X<Y<>>"
+	context := map[string]interface{}{"content": "X", "nodes": []interface{}{map[string]interface{}{"content": "Y", "nodes": []interface{}{}}}}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsSurroundingWhitespace(t *testing.T) {
 	generatePartial("partial.mustache", "\t|\t")
 	defer os.Remove("partial.mustache")
-	testSpec(t,
-		"| {{>partial}} |",
-		"| \t|\t |",
-		map[string]interface{}{})
+	template := "| {{>partial}} |"
+	expected := "| \t|\t |"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsInlineIndentation(t *testing.T) {
 	generatePartial("partial.mustache", ">\n>")
 	defer os.Remove("partial.mustache")
-	testSpec(t,
-		"  {{data}}  {{> partial}}\n",
-		"  |  >\n>\n",
-		map[string]interface{}{"data": "|"})
+	template := "  {{data}}  {{> partial}}\n"
+	expected := "  |  >\n>\n"
+	context := map[string]interface{}{"data": "|"}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsStandaloneLineEndings(t *testing.T) {
 	generatePartial("partial.mustache", ">")
 	defer os.Remove("partial.mustache")
-	testSpec(t,
-		"|\r\n{{>partial}}\r\n|",
-		"|\r\n>|",
-		map[string]interface{}{})
+	template := "|\r\n{{>partial}}\r\n|"
+	expected := "|\r\n>|"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsStandaloneWithoutPreviousLine(t *testing.T) {
 	generatePartial("partial.mustache", ">\n>")
 	defer os.Remove("partial.mustache")
-	testSpec(t,
-		"  {{>partial}}\n>",
-		"  >\n  >>",
-		map[string]interface{}{})
+	template := "  {{>partial}}\n>"
+	expected := "  >\n  >>"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsStandaloneWithoutNewline(t *testing.T) {
 	generatePartial("partial.mustache", ">\n>")
 	defer os.Remove("partial.mustache")
-	testSpec(t,
-		">\n  {{>partial}}",
-		">\n  >\n  >",
-		map[string]interface{}{})
+	template := ">\n  {{>partial}}"
+	expected := ">\n  >\n  >"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsStandaloneIndentation(t *testing.T) {
 	generatePartial("partial.mustache", "|\n{{{content}}}\n|\n")
 	defer os.Remove("partial.mustache")
-	testSpec(t,
-		"\\\n {{>partial}}\n/\n",
-		"\\\n |\n <\n->\n |\n/\n",
-		map[string]interface{}{"content": "<\n->"})
+	template := "\\\n {{>partial}}\n/\n"
+	expected := "\\\n |\n <\n->\n |\n/\n"
+	context := map[string]interface{}{"content": "<\n->"}
+	testSpec(t, template, expected, context)
 }
 
 func TestPartialsPaddingWhitespace(t *testing.T) {
 	generatePartial("partial.mustache", "[]")
 	defer os.Remove("partial.mustache")
-	testSpec(t,
-		"|{{> partial }}|",
-		"|[]|",
-		map[string]interface{}{"boolean": true})
+	template := "|{{> partial }}|"
+	expected := "|[]|"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsTruthy(t *testing.T) {
-	testSpec(t,
-		"\"{{#boolean}}This should be rendered.{{/boolean}}\"",
-		"\"This should be rendered.\"",
-		map[string]interface{}{"boolean": true})
+	template := "\"{{#boolean}}This should be rendered.{{/boolean}}\""
+	expected := "\"This should be rendered.\""
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsFalsey(t *testing.T) {
-	testSpec(t,
-		"\"{{#boolean}}This should not be rendered.{{/boolean}}\"",
-		"\"\"",
-		map[string]interface{}{"boolean": false})
+	template := "\"{{#boolean}}This should not be rendered.{{/boolean}}\""
+	expected := "\"\""
+	context := map[string]interface{}{"boolean": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsContext(t *testing.T) {
-	testSpec(t,
-		"\"{{#context}}Hi {{name}}.{{/context}}\"",
-		"\"Hi Joe.\"",
-		map[string]interface{}{"context": map[string]interface{}{"name": "Joe"}})
+	template := "\"{{#context}}Hi {{name}}.{{/context}}\""
+	expected := "\"Hi Joe.\""
+	context := map[string]interface{}{"context": map[string]interface{}{"name": "Joe"}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsDeeplyNestedContexts(t *testing.T) {
-	testSpec(t,
-		"{{#a}}\n{{one}}\n{{#b}}\n{{one}}{{two}}{{one}}\n{{#c}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{#d}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{#e}}\n{{one}}{{two}}{{three}}{{four}}{{five}}{{four}}{{three}}{{two}}{{one}}\n{{/e}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{/d}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{/c}}\n{{one}}{{two}}{{one}}\n{{/b}}\n{{one}}\n{{/a}}\n",
-		"1\n121\n12321\n1234321\n123454321\n1234321\n12321\n121\n1\n",
-		map[string]interface{}{"a": map[string]interface{}{"one": 1}, "b": map[string]interface{}{"two": 2}, "c": map[string]interface{}{"three": 3}, "d": map[string]interface{}{"four": 4}, "e": map[string]interface{}{"five": 5}})
+	template := "{{#a}}\n{{one}}\n{{#b}}\n{{one}}{{two}}{{one}}\n{{#c}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{#d}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{#e}}\n{{one}}{{two}}{{three}}{{four}}{{five}}{{four}}{{three}}{{two}}{{one}}\n{{/e}}\n{{one}}{{two}}{{three}}{{four}}{{three}}{{two}}{{one}}\n{{/d}}\n{{one}}{{two}}{{three}}{{two}}{{one}}\n{{/c}}\n{{one}}{{two}}{{one}}\n{{/b}}\n{{one}}\n{{/a}}\n"
+	expected := "1\n121\n12321\n1234321\n123454321\n1234321\n12321\n121\n1\n"
+	context := map[string]interface{}{"a": map[string]interface{}{"one": 1}, "b": map[string]interface{}{"two": 2}, "c": map[string]interface{}{"three": 3}, "d": map[string]interface{}{"four": 4}, "e": map[string]interface{}{"five": 5}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsList(t *testing.T) {
-	testSpec(t,
-		"\"{{#list}}{{item}}{{/list}}\"",
-		"\"123\"",
-		map[string]interface{}{"list": []interface{}{map[string]interface{}{"item": 1}, map[string]interface{}{"item": 2}, map[string]interface{}{"item": 3}}})
+	template := "\"{{#list}}{{item}}{{/list}}\""
+	expected := "\"123\""
+	context := map[string]interface{}{"list": []interface{}{map[string]interface{}{"item": 1}, map[string]interface{}{"item": 2}, map[string]interface{}{"item": 3}}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsEmptyList(t *testing.T) {
-	testSpec(t,
-		"\"{{#list}}Yay lists!{{/list}}\"",
-		"\"\"",
-		map[string]interface{}{"list": []interface{}{}})
+	template := "\"{{#list}}Yay lists!{{/list}}\""
+	expected := "\"\""
+	context := map[string]interface{}{"list": []interface{}{}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsDoubled(t *testing.T) {
-	testSpec(t,
-		"{{#bool}}\n* first\n{{/bool}}\n* {{two}}\n{{#bool}}\n* third\n{{/bool}}\n",
-		"* first\n* second\n* third\n",
-		map[string]interface{}{"two": "second", "bool": true})
+	template := "{{#bool}}\n* first\n{{/bool}}\n* {{two}}\n{{#bool}}\n* third\n{{/bool}}\n"
+	expected := "* first\n* second\n* third\n"
+	context := map[string]interface{}{"bool": true, "two": "second"}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsNestedTruthy(t *testing.T) {
-	testSpec(t,
-		"| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |",
-		"| A B C D E |",
-		map[string]interface{}{"bool": true})
+	template := "| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |"
+	expected := "| A B C D E |"
+	context := map[string]interface{}{"bool": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsNestedFalsey(t *testing.T) {
-	testSpec(t,
-		"| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |",
-		"| A  E |",
-		map[string]interface{}{"bool": false})
+	template := "| A {{#bool}}B {{#bool}}C{{/bool}} D{{/bool}} E |"
+	expected := "| A  E |"
+	context := map[string]interface{}{"bool": false}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsContextMisses(t *testing.T) {
-	testSpec(t,
-		"[{{#missing}}Found key 'missing'!{{/missing}}]",
-		"[]",
-		map[string]interface{}{})
+	template := "[{{#missing}}Found key 'missing'!{{/missing}}]"
+	expected := "[]"
+	context := map[string]interface{}{}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsImplicitIteratorString(t *testing.T) {
-	testSpec(t,
-		"\"{{#list}}({{.}}){{/list}}\"",
-		"\"(a)(b)(c)(d)(e)\"",
-		map[string]interface{}{"list": []interface{}{"a", "b", "c", "d", "e"}})
+	template := "\"{{#list}}({{.}}){{/list}}\""
+	expected := "\"(a)(b)(c)(d)(e)\""
+	context := map[string]interface{}{"list": []interface{}{"a", "b", "c", "d", "e"}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsImplicitIteratorInteger(t *testing.T) {
-	testSpec(t,
-		"\"{{#list}}({{.}}){{/list}}\"",
-		"\"(1)(2)(3)(4)(5)\"",
-		map[string]interface{}{"list": []interface{}{1, 2, 3, 4, 5}})
+	template := "\"{{#list}}({{.}}){{/list}}\""
+	expected := "\"(1)(2)(3)(4)(5)\""
+	context := map[string]interface{}{"list": []interface{}{1, 2, 3, 4, 5}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsImplicitIteratorDecimal(t *testing.T) {
-	testSpec(t,
-		"\"{{#list}}({{.}}){{/list}}\"",
-		"\"(1.1)(2.2)(3.3)(4.4)(5.5)\"",
-		map[string]interface{}{"list": []interface{}{1.1, 2.2, 3.3, 4.4, 5.5}})
+	template := "\"{{#list}}({{.}}){{/list}}\""
+	expected := "\"(1.1)(2.2)(3.3)(4.4)(5.5)\""
+	context := map[string]interface{}{"list": []interface{}{1.1, 2.2, 3.3, 4.4, 5.5}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsDottedNamesTruthy(t *testing.T) {
-	testSpec(t,
-		"\"{{#a.b.c}}Here{{/a.b.c}}\" == \"Here\"",
-		"\"Here\" == \"Here\"",
-		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": true}}})
+	template := "\"{{#a.b.c}}Here{{/a.b.c}}\" == \"Here\""
+	expected := "\"Here\" == \"Here\""
+	context := map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": true}}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsDottedNamesFalsey(t *testing.T) {
-	testSpec(t,
-		"\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\"",
-		"\"\" == \"\"",
-		map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": false}}})
+	template := "\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\""
+	expected := "\"\" == \"\""
+	context := map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": false}}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsDottedNamesBrokenChains(t *testing.T) {
-	testSpec(t,
-		"\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\"",
-		"\"\" == \"\"",
-		map[string]interface{}{"a": map[string]interface{}{}})
+	template := "\"{{#a.b.c}}Here{{/a.b.c}}\" == \"\""
+	expected := "\"\" == \"\""
+	context := map[string]interface{}{"a": map[string]interface{}{}}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsSurroundingWhitespace(t *testing.T) {
-	testSpec(t,
-		" | {{#boolean}}\t|\t{{/boolean}} | \n",
-		" | \t|\t | \n",
-		map[string]interface{}{"boolean": true})
+	template := " | {{#boolean}}\t|\t{{/boolean}} | \n"
+	expected := " | \t|\t | \n"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsInternalWhitespace(t *testing.T) {
-	testSpec(t,
-		" | {{#boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n",
-		" |  \n  | \n",
-		map[string]interface{}{"boolean": true})
+	template := " | {{#boolean}} {{! Important Whitespace }}\n {{/boolean}} | \n"
+	expected := " |  \n  | \n"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsIndentedInlineSections(t *testing.T) {
-	testSpec(t,
-		" {{#boolean}}YES{{/boolean}}\n {{#boolean}}GOOD{{/boolean}}\n",
-		" YES\n GOOD\n",
-		map[string]interface{}{"boolean": true})
+	template := " {{#boolean}}YES{{/boolean}}\n {{#boolean}}GOOD{{/boolean}}\n"
+	expected := " YES\n GOOD\n"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsStandaloneLines(t *testing.T) {
-	testSpec(t,
-		"| This Is\n{{#boolean}}\n|\n{{/boolean}}\n| A Line\n",
-		"| This Is\n|\n| A Line\n",
-		map[string]interface{}{"boolean": true})
+	template := "| This Is\n{{#boolean}}\n|\n{{/boolean}}\n| A Line\n"
+	expected := "| This Is\n|\n| A Line\n"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsIndentedStandaloneLines(t *testing.T) {
-	testSpec(t,
-		"| This Is\n  {{#boolean}}\n|\n  {{/boolean}}\n| A Line\n",
-		"| This Is\n|\n| A Line\n",
-		map[string]interface{}{"boolean": true})
+	template := "| This Is\n  {{#boolean}}\n|\n  {{/boolean}}\n| A Line\n"
+	expected := "| This Is\n|\n| A Line\n"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsStandaloneLineEndings(t *testing.T) {
-	testSpec(t,
-		"|\r\n{{#boolean}}\r\n{{/boolean}}\r\n|",
-		"|\r\n|",
-		map[string]interface{}{"boolean": true})
+	template := "|\r\n{{#boolean}}\r\n{{/boolean}}\r\n|"
+	expected := "|\r\n|"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsStandaloneWithoutPreviousLine(t *testing.T) {
-	testSpec(t,
-		"  {{#boolean}}\n#{{/boolean}}\n/",
-		"#\n/",
-		map[string]interface{}{"boolean": true})
+	template := "  {{#boolean}}\n#{{/boolean}}\n/"
+	expected := "#\n/"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsStandaloneWithoutNewline(t *testing.T) {
-	testSpec(t,
-		"#{{#boolean}}\n/\n  {{/boolean}}",
-		"#\n/\n",
-		map[string]interface{}{"boolean": true})
+	template := "#{{#boolean}}\n/\n  {{/boolean}}"
+	expected := "#\n/\n"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
 }
 
 func TestSectionsPadding(t *testing.T) {
-	testSpec(t,
-		"|{{# boolean }}={{/ boolean }}|",
-		"|=|",
-		map[string]interface{}{"boolean": true})
+	template := "|{{# boolean }}={{/ boolean }}|"
+	expected := "|=|"
+	context := map[string]interface{}{"boolean": true}
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasInterpolation(t *testing.T) {
+	lambda := func() string { return "world" }
+	template := "Hello, {{lambda}}!"
+	expected := "Hello, world!"
+	context := map[string]interface{}{}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasInterpolationExpansion(t *testing.T) {
+	lambda := func() string { return "{{planet}}" }
+	template := "Hello, {{lambda}}!"
+	expected := "Hello, world!"
+	context := map[string]interface{}{"planet": "world"}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasInterpolationAlternateDelimiters(t *testing.T) {
+	lambda := func() string { return "|planet| => {{planet}}" }
+	template := "{{= | | =}}\nHello, (|&lambda|)!"
+	expected := "Hello, (|planet| => world)!"
+	context := map[string]interface{}{"planet": "world"}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasInterpolationMultipleCalls(t *testing.T) {
+	lambda := func() func() string { g := 0; return func() string { g++; return strconv.Itoa(g) } }()
+	template := "{{lambda}} == {{{lambda}}} == {{lambda}}"
+	expected := "1 == 2 == 3"
+	context := map[string]interface{}{}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasEscaping(t *testing.T) {
+	lambda := func() string { return ">" }
+	template := "<{{lambda}}{{{lambda}}}"
+	expected := "<&gt;>"
+	context := map[string]interface{}{}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasSection(t *testing.T) {
+	lambda := func(text string) string {
+		if text == "{{x}}" {
+			return "yes"
+		} else {
+			return "no"
+		}
+	}
+	template := "<{{#lambda}}{{x}}{{/lambda}}>"
+	expected := "<yes>"
+	context := map[string]interface{}{"x": "Error!"}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasSectionExpansion(t *testing.T) {
+	lambda := func(text string) string { return text + "{{planet}}" + text }
+	template := "<{{#lambda}}-{{/lambda}}>"
+	expected := "<-Earth->"
+	context := map[string]interface{}{"planet": "Earth"}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasSectionAlternateDelimiters(t *testing.T) {
+	lambda := func(text string) string { return text + "{{planet}} => |planet|" + text }
+	template := "{{= | | =}}<|#lambda|-|/lambda|>"
+	expected := "<-{{planet}} => Earth->"
+	context := map[string]interface{}{"planet": "Earth"}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasSectionMultipleCalls(t *testing.T) {
+	lambda := func(text string) string { return "__" + text + "__" }
+	template := "{{#lambda}}FILE{{/lambda}} != {{#lambda}}LINE{{/lambda}}"
+	expected := "__FILE__ != __LINE__"
+	context := map[string]interface{}{}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
+}
+
+func TestLambdasInvertedSection(t *testing.T) {
+	lambda := func(text string) bool { return false }
+	template := "<{{^lambda}}{{static}}{{/lambda}}>"
+	expected := "<>"
+	context := map[string]interface{}{"static": "static"}
+	context["lambda"] = lambda
+	testSpec(t, template, expected, context)
 }

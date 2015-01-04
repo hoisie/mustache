@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+const defaultOtag = "{{"
+const defaultCtag = "}}"
+
 // environment is used to provide an environment and symbol table for recursive partials
 type environment struct {
 	partials map[string]*Template
@@ -35,6 +38,9 @@ type sectionElement struct {
 	inverted  bool
 	startline int
 	elems     []interface{}
+	rawBody   string
+	otag      string
+	ctag      string
 }
 
 type Template struct {
@@ -62,6 +68,10 @@ var (
 	esc_lt   = []byte("&lt;")
 	esc_gt   = []byte("&gt;")
 )
+
+func (s *sectionElement) writeRawBody(body string) {
+	s.rawBody += body
+}
 
 func (tmpl *Template) readString(s string) (string, error) {
 	i := tmpl.p
@@ -197,6 +207,10 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 
 		// put text into an item
 		text = text[0 : len(text)-len(tmpl.otag)]
+
+		// Store the text in case lambdas are used when rendering
+		section.writeRawBody(text)
+
 		section.elems = append(section.elems, &textElement{[]byte(text)})
 		potentialStandalone = potentialStandalone && endsWithWhitespace([]byte(text))
 
@@ -225,9 +239,11 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 		case '#', '^':
 			name := strings.TrimSpace(tag[1:])
 
+			section.writeRawBody(tmpl.otag + tag + tmpl.ctag)
+
 			handleStandaloneLine(section.elems, tmpl, potentialStandalone)
 
-			se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
+			se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}, "", tmpl.otag, tmpl.ctag}
 			err := tmpl.parseSection(&se)
 			if err != nil {
 				return err
@@ -243,6 +259,9 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 			}
 		case '>':
 			name := strings.TrimSpace(tag[1:])
+
+			section.writeRawBody(tmpl.otag + ">" + name + tmpl.ctag)
+
 			indent := handleStandaloneLine(tmpl.elems, tmpl, potentialStandalone)
 			partial := tmpl.lookupPartial(name)
 
@@ -266,13 +285,19 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 			}
 			handleStandaloneLine(section.elems, tmpl, potentialStandalone)
 		case '{':
+			// Remove the trailing '}' as well
+			name := strings.TrimSpace(tag[1 : len(tag)-1])
+			section.writeRawBody(tmpl.otag + "{" + name + "}" + tmpl.ctag)
+
 			if tag[len(tag)-1] == '}' {
 				//use a raw tag
-				section.elems = append(section.elems, &varElement{strings.TrimSpace(tag[1 : len(tag)-1]), true})
+				section.elems = append(section.elems, &varElement{name, true})
 			}
 		case '&':
+			section.writeRawBody(tmpl.otag + tag + tmpl.ctag)
 			section.elems = append(section.elems, &varElement{strings.TrimSpace(tag[1:]), true})
 		default:
+			section.writeRawBody(tmpl.otag + tag + tmpl.ctag)
 			section.elems = append(section.elems, &varElement{tag, false})
 		}
 	}
@@ -328,7 +353,7 @@ func (tmpl *Template) parse() error {
 			name := strings.TrimSpace(tag[1:])
 			handleStandaloneLine(tmpl.elems, tmpl, potentialStandalone)
 
-			se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}}
+			se := sectionElement{name, tag[0] == '^', tmpl.curline, []interface{}{}, "", tmpl.otag, tmpl.ctag}
 			err := tmpl.parseSection(&se)
 			if err != nil {
 				return err
@@ -575,6 +600,7 @@ func isEmpty(v reflect.Value) bool {
 	if !valueInd.IsValid() {
 		return true
 	}
+
 	switch val := valueInd; val.Kind() {
 	case reflect.Bool:
 		return !val.Bool()
@@ -621,6 +647,15 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
 			}
 		case reflect.Map, reflect.Struct:
 			contexts = append(contexts, value)
+		case reflect.Func:
+			out := val.Call([]reflect.Value{reflect.ValueOf(section.rawBody)})
+			if len(out) > 0 && out[0].Kind() == reflect.String {
+				content := evaluate(out[0].String(), section.otag, section.ctag, contextChain)
+
+				section.elems = make([]interface{}, 0, 1)
+				section.elems = append(section.elems, &textElement{[]byte(content)})
+			}
+			contexts = append(contexts, context)
 		default:
 			contexts = append(contexts, context)
 		}
@@ -652,10 +687,27 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 		val := lookup(contextChain, elem.name)
 
 		if val.IsValid() {
+			i := val.Interface()
+
+			var content interface{}
+
+			switch fn := reflect.ValueOf(i); fn.Kind() {
+			case reflect.Func:
+				out := fn.Call(nil)
+				if len(out) > 0 && out[0].Kind() == reflect.String {
+					content = evaluate(out[0].String(), defaultOtag, defaultCtag, contextChain)
+				} else {
+					content = ""
+				}
+
+			default:
+				content = i
+			}
+
 			if elem.raw {
-				fmt.Fprint(buf, val.Interface())
+				fmt.Fprint(buf, content)
 			} else {
-				s := fmt.Sprint(val.Interface())
+				s := fmt.Sprint(content)
 				template.HTMLEscape(buf, []byte(s))
 			}
 		}
@@ -692,8 +744,12 @@ func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) s
 }
 
 func ParseString(data string) (*Template, error) {
+	return parseString(data, defaultOtag, defaultCtag, newEnvironment())
+}
+
+func parseString(data string, otag string, ctag string, environment environment) (*Template, error) {
 	cwd := os.Getenv("CWD")
-	tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}, newEnvironment()}
+	tmpl := Template{data, otag, ctag, 0, 1, cwd, []interface{}{}, environment}
 	err := tmpl.parse()
 
 	if err != nil {
@@ -720,7 +776,7 @@ func parseFile(filename string, indent string, environment environment) (*Templa
 
 	name := basename[0 : len(basename)-len(ext)]
 
-	tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}, environment}
+	tmpl := Template{string(data), defaultOtag, defaultCtag, 0, 1, dirname, []interface{}{}, environment}
 	tmpl.environment.partials[name] = &tmpl
 	err = tmpl.parse()
 
@@ -729,6 +785,16 @@ func parseFile(filename string, indent string, environment environment) (*Templa
 	}
 
 	return &tmpl, nil
+}
+
+func evaluate(data string, otag string, ctag string, contextChain []interface{}) string {
+	if tmpl, err := parseString(data, otag, ctag, newEnvironment()); err == nil {
+		var buf bytes.Buffer
+		tmpl.renderTemplate(contextChain, &buf)
+		return buf.String()
+	} else {
+		return data
+	}
 }
 
 func Render(data string, context ...interface{}) string {

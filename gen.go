@@ -23,12 +23,12 @@ type JSONSpecDoc struct {
 }
 
 type JSONSpecTest struct {
-	Name        string             `json:"name"`
-	Data        interface{}        `json:"data"`
-	Expected    string             `json:"expected"`
-	Template    string             `json:"template"`
-	Description string             `json:"desc"`
-	Partials    *map[string]string `json:"partials"`
+	Name        string                 `json:"name"`
+	Data        map[string]interface{} `json:"data"`
+	Expected    string                 `json:"expected"`
+	Template    string                 `json:"template"`
+	Description string                 `json:"desc"`
+	Partials    *map[string]string     `json:"partials"`
 }
 
 var filename = flag.String("output", "mustache_spec_test.go", "output file name")
@@ -40,7 +40,7 @@ var supportedSpecNames = []string{
 	"inverted",
 	"partials",
 	"sections",
-	// "lambdas",
+	"lambdas",
 }
 
 func main() {
@@ -50,11 +50,11 @@ func main() {
 
 	writeHeader(&buf)
 
-	r := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "")
+	r := strings.NewReplacer(" ", "", "-", "", "(", "", ")", "", "~", "")
 
 	testSpec := func(scope string, test JSONSpecTest) {
 		fmt.Fprint(&buf, `func `)
-		fmt.Fprint(&buf, "Test"+strings.Title(scope)+r.Replace(test.Name))
+		fmt.Fprint(&buf, "Test"+r.Replace(strings.Title(scope))+r.Replace(test.Name))
 		fmt.Fprintln(&buf, `(t *testing.T) {`)
 		if test.Partials != nil {
 			for k, v := range *test.Partials {
@@ -63,12 +63,27 @@ func main() {
 				fmt.Fprintf(&buf, "\tdefer os.Remove(%#v)\n", name)
 			}
 		}
-		fmt.Fprintln(&buf, `testSpec(t,`)
-		fmt.Fprintf(&buf, "%#v,\n%#v,\n%#v", test.Template, test.Expected, test.Data)
-		// test.Expected+`, map[string]interface{}{}`+
-		fmt.Fprintln(&buf, `)
+
+		lambda, hasLambda := test.Data["lambda"]
+		if hasLambda {
+			if fns, ok := lambda.(map[string]interface{}); ok {
+				if fn, ok := fns["go"]; ok {
+					fmt.Fprintf(&buf, "\tlambda := %v\n", fn)
+				}
+			}
+			delete(test.Data, "lambda")
 		}
-`)
+
+		fmt.Fprintf(&buf, "\ttemplate := %#v\n", test.Template)
+		fmt.Fprintf(&buf, "\texpected := %#v\n", test.Expected)
+		fmt.Fprintf(&buf, "\tcontext := %#v\n", test.Data)
+
+		if hasLambda {
+			fmt.Fprintf(&buf, "\tcontext[\"lambda\"] = lambda\n")
+		}
+
+		fmt.Fprintf(&buf, "\ttestSpec(t, template, expected, context)\n")
+		fmt.Fprintf(&buf, "}\n\n")
 	}
 
 	generateTests := func(pathName string) {
@@ -136,6 +151,7 @@ func writeHeader(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, `import (
 	"os"
 	"strings"
+	"strconv"
 	"testing"
 )
 
