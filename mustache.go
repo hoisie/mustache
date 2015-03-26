@@ -10,6 +10,8 @@ import (
 	"path"
 	"reflect"
 	"strings"
+
+	_ "github.com/jabley/mustache/parse"
 )
 
 const defaultOtag = "{{"
