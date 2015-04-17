@@ -11,12 +11,15 @@ type itemType int
 
 const (
 	itemError itemType = iota // error occurred
-	itemEOF
-	itemText
 	itemComment
+	itemEOF
 	itemLeftDelim
+	itemLeftSectionDelim
 	itemRightDelim
+	itemRightSectionDelim
+	itemText
 	itemVariable
+	itemPartial
 )
 
 // item represents a token or text string returned from the scanner
@@ -201,6 +204,10 @@ func lexLeftDelim(l *lexer) stateFn {
 		return lexPartial
 	case strings.HasPrefix(s, "{"):
 		return lexRawText
+	case strings.HasPrefix(s, "/"):
+		return lexRightSection
+	case strings.HasPrefix(s, ">"):
+		return lexPartial
 	}
 	l.emit(itemLeftDelim)
 	// l.parenDepth = 0
@@ -250,12 +257,55 @@ func lexRightDelim(l *lexer) stateFn {
 	return lexText
 }
 
+// lexSection scans a section. The left section marker is known to be present.
 func lexSection(l *lexer) stateFn {
-	return l.errorf("Section support not implemented")
+	l.pos += Pos(len("#"))
+	l.emit(itemLeftSectionDelim)
+	return lexInsideSection
 }
 
+// lexInsideSection scans inside a section.
+func lexInsideSection(l *lexer) stateFn {
+	for {
+		if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
+			l.emit(itemVariable)
+			return lexRightDelim
+		}
+		if l.next() == eof {
+			break
+		}
+	}
+	l.emitAnyText()
+	l.emit(itemEOF)
+	return nil
+}
+
+// lexRightSection scans the end of a section. The right section marker is known to be present.
+func lexRightSection(l *lexer) stateFn {
+	l.pos += Pos(len("/"))
+	l.emit(itemRightSectionDelim)
+	return lexInsideSection
+}
+
+//  lexPartial scans a partial. The left partial marker is known to be present.
 func lexPartial(l *lexer) stateFn {
-	return l.errorf("Partial support not implemented")
+	l.emit(itemLeftDelim)
+	l.pos += Pos(len(">"))
+	l.ignore()
+
+	for {
+		if strings.HasPrefix(l.input[l.pos:], l.rightDelim) {
+			l.emit(itemPartial)
+			return lexRightDelim
+		}
+		if l.next() == eof {
+			break
+		}
+	}
+
+	l.emitAnyText()
+	l.emit(itemEOF)
+	return nil
 }
 
 func lexRawText(l *lexer) stateFn {

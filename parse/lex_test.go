@@ -9,9 +9,11 @@ type lexTest struct {
 }
 
 var (
-	tEOF   = item{itemEOF, 0, ""}
-	tLeft  = item{itemLeftDelim, 0, "{{"}
-	tRight = item{itemRightDelim, 0, "}}"}
+	tEOF          = item{itemEOF, 0, ""}
+	tLeft         = item{itemLeftDelim, 0, "{{"}
+	tRight        = item{itemRightDelim, 0, "}}"}
+	tLeftSection  = item{itemLeftSectionDelim, 0, "{{#"}
+	tRightSection = item{itemRightSectionDelim, 0, "{{/"}
 )
 
 var lexTests = []lexTest{
@@ -49,10 +51,22 @@ var lexTests = []lexTest{
 		tRight,
 		tEOF,
 	}},
-	// {"section", "{{#foo}}{{/foo}", []item{
-	//   {itemVariable, 0, "foo"},
-	//   tEOF,
-	// }},
+	{"section", "{{#foo}}stuff goes here{{/foo}}", []item{
+		tLeftSection,
+		{itemVariable, 0, "foo"},
+		tRight,
+		{itemText, 0, "stuff goes here"},
+		tRightSection,
+		{itemVariable, 0, "foo"},
+		tRight,
+		tEOF,
+	}},
+	{"partial", "{{>text}}", []item{
+		tLeft,
+		{itemPartial, 0, "text"},
+		tRight,
+		tEOF,
+	}},
 }
 
 func TestLex(t *testing.T) {
