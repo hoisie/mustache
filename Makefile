@@ -5,7 +5,7 @@ GOFMT=goimports
 IMPORT_BASE := github.com/jabley
 IMPORT_PATH := $(IMPORT_BASE)/mustache
 
-all: _vendor format test
+all: _vendor _deps format test
 
 format:
 	${GOFMT} -w *.go
@@ -14,7 +14,6 @@ format:
 test:
 	gom test -v . ./parse 
 
-
 coverage:
 	gom test -coverprofile=mustache.coverprofile
 	find . -name '*.coverprofile' -type f -exec sed -i '' 's|_'$(CURDIR)'|\.|' {} \;
@@ -22,6 +21,9 @@ coverage:
 generate:
 	gom generate
 	${GOFMT} -w mustache_spec_test.go
+
+_deps:
+	go get github.com/mattn/gom
 
 _vendor: Gomfile _vendor/src/$(IMPORT_PATH)
 	gom -test install
