@@ -5,7 +5,7 @@ GOFMT=goimports
 IMPORT_BASE := github.com/jabley
 IMPORT_PATH := $(IMPORT_BASE)/mustache
 
-all: _vendor _deps format test
+all: _deps _vendor format test
 
 format:
 	${GOFMT} -w *.go
@@ -24,6 +24,7 @@ generate:
 
 _deps:
 	go get github.com/mattn/gom
+	-go get golang.org/x/tools/cmd/goimports
 
 _vendor: Gomfile _vendor/src/$(IMPORT_PATH)
 	gom -test install
