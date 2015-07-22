@@ -178,10 +178,9 @@ func TestBasic(t *testing.T) {
 	for _, test := range tests {
 		output, err := Render(test.tmpl, test.context)
 		if err != nil {
-			t.Fatal(err)
-		}
-		if output != test.expected {
-			t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
+			t.Error(err)
+		} else if output != test.expected {
+			t.Errorf("%q expected %q got %q", test.tmpl, test.expected, output)
 		}
 	}
 }
@@ -191,10 +190,9 @@ func TestFile(t *testing.T) {
 	expected := "hello world"
 	output, err := RenderFile(filename, map[string]string{"name": "world"})
 	if err != nil {
-		t.Fatal(err)
-	}
-	if output != expected {
-		t.Fatalf("testfile expected %q got %q", expected, output)
+		t.Error(err)
+	} else if output != expected {
+		t.Errorf("testfile expected %q got %q", expected, output)
 	}
 }
 
@@ -204,10 +202,9 @@ func TestPartial(t *testing.T) {
 	expected := "hello world"
 	output, err := RenderFile(filename, map[string]string{"Name": "world"})
 	if err != nil {
-		t.Fatal(err)
-	}
-	if output != expected {
-		t.Fatalf("testpartial expected %q got %q", expected, output)
+		t.Error(err)
+	} else if output != expected {
+		t.Errorf("testpartial expected %q got %q", expected, output)
 	}
 }
 
@@ -225,14 +222,17 @@ func TestSectionPartial(t *testing.T) {
 func TestMultiContext(t *testing.T) {
 	output, err := Render(`{{hello}} {{World}}`, map[string]string{"hello": "hello"}, struct{ World string }{"world"})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	output2, err := Render(`{{hello}} {{World}}`, struct{ World string }{"world"}, map[string]string{"hello": "hello"})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+		return
 	}
 	if output != "hello world" || output2 != "hello world" {
-		t.Fatalf("TestMultiContext expected %q got %q", "hello world", output)
+		t.Errorf("TestMultiContext expected %q got %q", "hello world", output)
+		return
 	}
 }
 
@@ -250,15 +250,15 @@ func TestMalformed(t *testing.T) {
 		output, err := Render(test.tmpl, test.context)
 		if err != nil {
 			if test.err == nil {
-				t.Fatal(err)
+				t.Error(err)
 			} else if test.err.Error() != err.Error() {
-				t.Fatalf("%q expected error %q but got error %q", test.tmpl, test.err.Error(), err.Error())
+				t.Errorf("%q expected error %q but got error %q", test.tmpl, test.err.Error(), err.Error())
 			}
 		} else {
 			if test.err == nil {
-				t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
+				t.Errorf("%q expected %q got %q", test.tmpl, test.expected, output)
 			} else {
-				t.Fatalf("%q expected error %q but got %q", test.tmpl, test.err.Error(), output)
+				t.Errorf("%q expected error %q but got %q", test.tmpl, test.err.Error(), output)
 			}
 		}
 	}
@@ -283,10 +283,9 @@ func TestLayout(t *testing.T) {
 	for _, test := range layoutTests {
 		output, err := RenderInLayout(test.tmpl, test.layout, test.context)
 		if err != nil {
-			t.Fatal(err)
-		}
-		if output != test.expected {
-			t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
+			t.Error(err)
+		} else if output != test.expected {
+			t.Errorf("%q expected %q got %q", test.tmpl, test.expected, output)
 		}
 	}
 }
