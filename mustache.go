@@ -502,9 +502,13 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 			}
 		}
 	case *sectionElement:
-		renderSection(elem, contextChain, buf)
+		if err := renderSection(elem, contextChain, buf); err != nil {
+			return err
+		}
 	case *Template:
-		elem.renderTemplate(contextChain, buf)
+		if err := elem.renderTemplate(contextChain, buf); err != nil {
+			return err
+		}
 	}
 	return nil
 }
