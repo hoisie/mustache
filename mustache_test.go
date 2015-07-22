@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"testing"
 )
 
@@ -90,12 +91,6 @@ var tests = []Test{
 	{`{{ a }}{{=<% %>=}}<%b %><%={{ }}=%>{{ c }}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc", nil},
 	{`{{ a }}{{= <% %> =}}<%b %><%= {{ }}=%>{{c}}`, map[string]string{"a": "a", "b": "b", "c": "c"}, "abc", nil},
 
-	//does not exist
-	{`{{dne}}`, map[string]string{"name": "world"}, "", nil},
-	{`{{dne}}`, User{"Mike", 1}, "", nil},
-	{`{{dne}}`, &User{"Mike", 1}, "", nil},
-	{`{{#has}}{{/has}}`, &User{"Mike", 1}, "", nil},
-
 	//section tests
 	{`{{#A}}{{B}}{{/A}}`, Data{true, "hello"}, "hello", nil},
 	{`{{#A}}{{{B}}}{{/A}}`, Data{true, "5 > 2"}, "5 > 2", nil},
@@ -134,7 +129,6 @@ var tests = []Test{
 	{`"{{#list}}({{.}}){{/list}}"`, map[string]interface{}{"list": []float64{1.10, 2.20, 3.30, 4.40, 5.50}}, "\"(1.1)(2.2)(3.3)(4.4)(5.5)\"", nil},
 
 	//inverted section tests
-	{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc", nil},
 	{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]interface{}{"a": "a", "b": false, "c": "c"}, "abc", nil},
 	{`{{^a}}b{{/a}}`, map[string]interface{}{"a": false}, "b", nil},
 	{`{{^a}}b{{/a}}`, map[string]interface{}{"a": true}, "", nil},
@@ -168,19 +162,67 @@ var tests = []Test{
 	{`"{{person.name}}" == "{{#person}}{{name}}{{/person}}"`, map[string]interface{}{"person": map[string]string{"name": "Joe"}}, `"Joe" == "Joe"`, nil},
 	{`"{{{person.name}}}" == "{{#person}}{{{name}}}{{/person}}"`, map[string]interface{}{"person": map[string]string{"name": "Joe"}}, `"Joe" == "Joe"`, nil},
 	{`"{{a.b.c.d.e.name}}" == "Phil"`, map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": map[string]interface{}{"d": map[string]interface{}{"e": map[string]string{"name": "Phil"}}}}}}, `"Phil" == "Phil"`, nil},
-	{`"{{a.b.c}}" == ""`, map[string]interface{}{}, `"" == ""`, nil},
-	{`"{{a.b.c.name}}" == ""`, map[string]interface{}{"a": map[string]interface{}{"b": map[string]string{}}, "c": map[string]string{"name": "Jim"}}, `"" == ""`, nil},
 	{`"{{#a}}{{b.c.d.e.name}}{{/a}}" == "Phil"`, map[string]interface{}{"a": map[string]interface{}{"b": map[string]interface{}{"c": map[string]interface{}{"d": map[string]interface{}{"e": map[string]string{"name": "Phil"}}}}}, "b": map[string]interface{}{"c": map[string]interface{}{"d": map[string]interface{}{"e": map[string]string{"name": "Wrong"}}}}}, `"Phil" == "Phil"`, nil},
 	{`{{#a}}{{b.c}}{{/a}}`, map[string]interface{}{"a": map[string]interface{}{"b": map[string]string{}}, "b": map[string]string{"c": "ERROR"}}, "", nil},
 }
 
 func TestBasic(t *testing.T) {
+	// Default behavior, AllowMissingVariables=true
 	for _, test := range tests {
+		output, err := Render(test.tmpl, test.context)
+		if err != nil {
+			t.Errorf("%q expected %q but got error %q", test.tmpl, test.expected, err.Error())
+		} else if output != test.expected {
+			t.Errorf("%q expected %q got %q", test.tmpl, test.expected, output)
+		}
+	}
+
+	// Now set AllowMissingVariables=false and test again
+	AllowMissingVariables = false
+	defer func() { AllowMissingVariables = true }()
+	for _, test := range tests {
+		output, err := Render(test.tmpl, test.context)
+		if err != nil {
+			t.Errorf("%s expected %s but got error %s", test.tmpl, test.expected, err.Error())
+		} else if output != test.expected {
+			t.Errorf("%q expected %q got %q", test.tmpl, test.expected, output)
+		}
+	}
+}
+
+var missing = []Test{
+	//does not exist
+	{`{{dne}}`, map[string]string{"name": "world"}, "", nil},
+	{`{{dne}}`, User{"Mike", 1}, "", nil},
+	{`{{dne}}`, &User{"Mike", 1}, "", nil},
+	{`{{#has}}{{/has}}`, &User{"Mike", 1}, "", nil},
+	//inverted section tests
+	{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc", nil},
+	//dotted names(dot notation)
+	{`"{{a.b.c}}" == ""`, map[string]interface{}{}, `"" == ""`, nil},
+	{`"{{a.b.c.name}}" == ""`, map[string]interface{}{"a": map[string]interface{}{"b": map[string]string{}}, "c": map[string]string{"name": "Jim"}}, `"" == ""`, nil},
+}
+
+func TestMissing(t *testing.T) {
+	// Default behavior, AllowMissingVariables=true
+	for _, test := range missing {
 		output, err := Render(test.tmpl, test.context)
 		if err != nil {
 			t.Error(err)
 		} else if output != test.expected {
 			t.Errorf("%q expected %q got %q", test.tmpl, test.expected, output)
+		}
+	}
+
+	// Now set AllowMissingVariables=false and confirm we get errors.
+	AllowMissingVariables = false
+	defer func() { AllowMissingVariables = true }()
+	for _, test := range missing {
+		output, err := Render(test.tmpl, test.context)
+		if err == nil {
+			t.Errorf("%q expected missing variable error but got %q", test.tmpl, output)
+		} else if strings.Index(err.Error(), "Missing variable") == -1 {
+			t.Errorf("%q expected missing variable error but got %q", test.tmpl, err.Error())
 		}
 	}
 }

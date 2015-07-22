@@ -13,6 +13,13 @@ import (
 	"strings"
 )
 
+var (
+	// AllowMissingVariables defines the behavior for a variable "miss." If it
+	// is true (the default), an empty string is emitted. If it is false, an error
+	// is generated instead.
+	AllowMissingVariables = true
+)
+
 type textElement struct {
 	text []byte
 }
@@ -398,7 +405,10 @@ Outer:
 			}
 		}
 	}
-	return reflect.Value{}, nil
+	if AllowMissingVariables {
+		return reflect.Value{}, nil
+	}
+	return reflect.Value{}, fmt.Errorf("Missing variable %q", name)
 }
 
 func isEmpty(v reflect.Value) bool {
