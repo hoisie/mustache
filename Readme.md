@@ -1,3 +1,9 @@
+## Why a Fork?
+
+I forked [hoisie/mustache](https://github.com/hoisie/mustache) because it does not appear to be maintained, and I wanted to add the following functionality:
+- Update the API to follow the idiomatic Go convention of returning errors (this is a breaking change)
+- Add option to treat missing variables as errors
+
 ## Overview
 
 mustache.go is an implementation of the mustache template language in Go. It is better suited for website templates than Go's native pkg/template. mustache.go is fast -- it parses templates efficiently and stores them in a tree-like structure which allows for fast execution. 
