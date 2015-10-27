@@ -123,6 +123,9 @@ var tests = []Test{
 	{"{{#users}}\n{{Name}}\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\nMike\n", nil},
 	{"{{#users}}\r\n{{Name}}\r\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\r\nMike\r\n", nil},
 
+	//section does not exist
+	{`{{#has}}{{/has}}`, &User{"Mike", 1}, "", nil},
+
 	// implicit iterator tests
 	{`"{{#list}}({{.}}){{/list}}"`, map[string]interface{}{"list": []string{"a", "b", "c", "d", "e"}}, "\"(a)(b)(c)(d)(e)\"", nil},
 	{`"{{#list}}({{.}}){{/list}}"`, map[string]interface{}{"list": []int{1, 2, 3, 4, 5}}, "\"(1)(2)(3)(4)(5)\"", nil},
@@ -134,6 +137,7 @@ var tests = []Test{
 	{`{{^a}}b{{/a}}`, map[string]interface{}{"a": true}, "", nil},
 	{`{{^a}}b{{/a}}`, map[string]interface{}{"a": "nonempty string"}, "", nil},
 	{`{{^a}}b{{/a}}`, map[string]interface{}{"a": []string{}}, "b", nil},
+	{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc", nil},
 
 	//function tests
 	{`{{#users}}{{Func1}}{{/users}}`, map[string]interface{}{"users": []User{{"Mike", 1}}}, "Mike", nil},
@@ -195,9 +199,6 @@ var missing = []Test{
 	{`{{dne}}`, map[string]string{"name": "world"}, "", nil},
 	{`{{dne}}`, User{"Mike", 1}, "", nil},
 	{`{{dne}}`, &User{"Mike", 1}, "", nil},
-	{`{{#has}}{{/has}}`, &User{"Mike", 1}, "", nil},
-	//inverted section tests
-	{`{{a}}{{^b}}b{{/b}}{{c}}`, map[string]string{"a": "a", "c": "c"}, "abc", nil},
 	//dotted names(dot notation)
 	{`"{{a.b.c}}" == ""`, map[string]interface{}{}, `"" == ""`, nil},
 	{`"{{a.b.c.name}}" == ""`, map[string]interface{}{"a": map[string]interface{}{"b": map[string]string{}}, "c": map[string]string{"name": "Jim"}}, `"" == ""`, nil},

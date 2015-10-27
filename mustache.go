@@ -346,16 +346,16 @@ func call(v reflect.Value, method reflect.Method) reflect.Value {
 
 // Evaluate interfaces and pointers looking for a value that can look up the name, via a
 // struct field, method, or map key, and return the result of the lookup.
-func lookup(contextChain []interface{}, name string) (reflect.Value, error) {
+func lookup(contextChain []interface{}, name string, allowMissing bool) (reflect.Value, error) {
 	// dot notation
 	if name != "." && strings.Contains(name, ".") {
 		parts := strings.SplitN(name, ".", 2)
 
-		v, err := lookup(contextChain, parts[0])
+		v, err := lookup(contextChain, parts[0], allowMissing)
 		if err != nil {
 			return v, err
 		}
-		return lookup([]interface{}{v}, parts[1])
+		return lookup([]interface{}{v}, parts[1], allowMissing)
 	}
 
 	defer func() {
@@ -405,7 +405,7 @@ Outer:
 			}
 		}
 	}
-	if AllowMissingVariables {
+	if allowMissing {
 		return reflect.Value{}, nil
 	}
 	return reflect.Value{}, fmt.Errorf("Missing variable %q", name)
@@ -446,7 +446,7 @@ loop:
 }
 
 func renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer) error {
-	value, err := lookup(contextChain, section.name)
+	value, err := lookup(contextChain, section.name, true)
 	if err != nil {
 		return err
 	}
@@ -498,7 +498,7 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 				fmt.Printf("Panic while looking up %q: %s\n", elem.name, r)
 			}
 		}()
-		val, err := lookup(contextChain, elem.name)
+		val, err := lookup(contextChain, elem.name, AllowMissingVariables)
 		if err != nil {
 			return err
 		}
