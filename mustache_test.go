@@ -332,3 +332,54 @@ func TestLayout(t *testing.T) {
 		}
 	}
 }
+
+type Person struct {
+	FirstName string
+	LastName  string
+}
+
+func (p *Person) Name1() string {
+	return p.FirstName + " " + p.LastName
+}
+
+func (p Person) Name2() string {
+	return p.FirstName + " " + p.LastName
+}
+
+func TestPointerReceiver(t *testing.T) {
+	p := Person{"John", "Smith"}
+	tests := []struct {
+		tmpl     string
+		context  interface{}
+		expected string
+	}{
+		{
+			tmpl:     "{{Name1}}",
+			context:  &p,
+			expected: "John Smith",
+		},
+		{
+			tmpl:     "{{Name2}}",
+			context:  &p,
+			expected: "John Smith",
+		},
+		{
+			tmpl:     "{{Name1}}",
+			context:  p,
+			expected: "",
+		},
+		{
+			tmpl:     "{{Name2}}",
+			context:  p,
+			expected: "John Smith",
+		},
+	}
+	for _, test := range tests {
+		output, err := Render(test.tmpl, test.context)
+		if err != nil {
+			t.Error(err)
+		} else if output != test.expected {
+			t.Errorf("expected %q got %q", test.expected, output)
+		}
+	}
+}
