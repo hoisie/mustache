@@ -2,7 +2,6 @@ package mustache
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -36,6 +35,7 @@ type sectionElement struct {
 	elems     []interface{}
 }
 
+// Template represents a compilde mustache template
 type Template struct {
 	data    string
 	otag    string
@@ -51,20 +51,13 @@ type parseError struct {
 	message string
 }
 
-func (p parseError) Error() string { return fmt.Sprintf("line %d: %s", p.line, p.message) }
-
-var (
-	esc_quot = []byte("&quot;")
-	esc_apos = []byte("&apos;")
-	esc_amp  = []byte("&amp;")
-	esc_lt   = []byte("&lt;")
-	esc_gt   = []byte("&gt;")
-)
+func (p parseError) Error() string {
+	return fmt.Sprintf("line %d: %s", p.line, p.message)
+}
 
 func (tmpl *Template) readString(s string) (string, error) {
-	i := tmpl.p
 	newlines := 0
-	for true {
+	for i := tmpl.p; ; i++ {
 		//are we at the end of the string?
 		if i+len(s) > len(tmpl.data) {
 			return tmpl.data[tmpl.p:], io.EOF
@@ -75,7 +68,6 @@ func (tmpl *Template) readString(s string) (string, error) {
 		}
 
 		if tmpl.data[i] != s[0] {
-			i++
 			continue
 		}
 
@@ -94,13 +86,8 @@ func (tmpl *Template) readString(s string) (string, error) {
 
 			tmpl.curline += newlines
 			return text, nil
-		} else {
-			i++
 		}
 	}
-
-	//should never be here
-	return "", nil
 }
 
 func (tmpl *Template) parsePartial(name string) (*Template, error) {
@@ -122,7 +109,7 @@ func (tmpl *Template) parsePartial(name string) (*Template, error) {
 		}
 	}
 	if filename == "" {
-		return nil, errors.New(fmt.Sprintf("Could not find partial %q", name))
+		return nil, fmt.Errorf("Could not find partial %q", name)
 	}
 
 	partial, err := ParseFile(filename)
@@ -171,7 +158,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 
 			//ignore the newline when a section starts
 			if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
-				tmpl.p += 1
+				tmpl.p++
 			} else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
 				tmpl.p += 2
 			}
@@ -186,9 +173,8 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 			name := strings.TrimSpace(tag[1:])
 			if name != section.name {
 				return parseError{tmpl.curline, "interleaved closing tag: " + name}
-			} else {
-				return nil
 			}
+			return nil
 		case '>':
 			name := strings.TrimSpace(tag[1:])
 			partial, err := tmpl.parsePartial(name)
@@ -254,7 +240,7 @@ func (tmpl *Template) parse() error {
 			name := strings.TrimSpace(tag[1:])
 
 			if len(tmpl.data) > tmpl.p && tmpl.data[tmpl.p] == '\n' {
-				tmpl.p += 1
+				tmpl.p++
 			} else if len(tmpl.data) > tmpl.p+1 && tmpl.data[tmpl.p] == '\r' && tmpl.data[tmpl.p+1] == '\n' {
 				tmpl.p += 2
 			}
@@ -390,16 +376,14 @@ Outer:
 				ret := av.FieldByName(name)
 				if ret.IsValid() {
 					return ret, nil
-				} else {
-					continue Outer
 				}
+				continue Outer
 			case reflect.Map:
 				ret := av.MapIndex(reflect.ValueOf(name))
 				if ret.IsValid() {
 					return ret, nil
-				} else {
-					continue Outer
 				}
+				continue Outer
 			default:
 				continue Outer
 			}
@@ -532,6 +516,8 @@ func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) 
 	return nil
 }
 
+// Render uses the given data source - generally a map or struct - to render
+// the compiled template and return the output.
 func (tmpl *Template) Render(context ...interface{}) (string, error) {
 	var buf bytes.Buffer
 	var contextChain []interface{}
@@ -543,6 +529,9 @@ func (tmpl *Template) Render(context ...interface{}) (string, error) {
 	return buf.String(), err
 }
 
+// RenderInLayout uses the given data source - generally a map or struct - to
+// render the compiled template and layout "wrapper" template and return the
+// output.
 func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) (string, error) {
 	content, err := tmpl.Render(context...)
 	if err != nil {
@@ -554,6 +543,9 @@ func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) (
 	return layout.Render(allContext...)
 }
 
+// ParseString compiles a mustache template string. The resulting output can
+// be used to efficiently render the template multiple times with different data
+// sources.
 func ParseString(data string) (*Template, error) {
 	cwd := os.Getenv("CWD")
 	tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}}
@@ -566,6 +558,9 @@ func ParseString(data string) (*Template, error) {
 	return &tmpl, err
 }
 
+// ParseFile loads a mustache template string from a file and compiles it. The
+// resulting output can be used to efficiently render the template multiple
+// times with different data sources.
 func ParseFile(filename string) (*Template, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -584,6 +579,8 @@ func ParseFile(filename string) (*Template, error) {
 	return &tmpl, nil
 }
 
+// Render compiles a mustache template string and uses the the given data source
+// - generally a map or struct - to render the template and return the output.
 func Render(data string, context ...interface{}) (string, error) {
 	tmpl, err := ParseString(data)
 	if err != nil {
@@ -592,6 +589,9 @@ func Render(data string, context ...interface{}) (string, error) {
 	return tmpl.Render(context...)
 }
 
+// RenderInLayout compiles a mustache template string and layout "wrapper" and
+// uses the given data source - generally a map or struct - to render the
+// compiled templates and return the output.
 func RenderInLayout(data string, layoutData string, context ...interface{}) (string, error) {
 	layoutTmpl, err := ParseString(layoutData)
 	if err != nil {
@@ -604,6 +604,9 @@ func RenderInLayout(data string, layoutData string, context ...interface{}) (str
 	return tmpl.RenderInLayout(layoutTmpl, context...)
 }
 
+// RenderFile loads a mustache template string from a file and compiles it, and
+// then uses the the given data source - generally a map or struct - to render
+// the template and return the output.
 func RenderFile(filename string, context ...interface{}) (string, error) {
 	tmpl, err := ParseFile(filename)
 	if err != nil {
@@ -612,6 +615,10 @@ func RenderFile(filename string, context ...interface{}) (string, error) {
 	return tmpl.Render(context...)
 }
 
+// RenderFileInLayout loads a mustache template string and layout "wrapper"
+// template string from files and compiles them, and  then uses the the given
+// data source - generally a map or struct - to render the compiled templates
+// and return the output.
 func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) (string, error) {
 	layoutTmpl, err := ParseFile(layoutFile)
 	if err != nil {

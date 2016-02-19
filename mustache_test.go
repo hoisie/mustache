@@ -22,10 +22,10 @@ type Data struct {
 
 type User struct {
 	Name string
-	Id   int64
+	ID   int64
 }
 
-type settings struct {
+type Settings struct {
 	Allow bool
 }
 
@@ -45,13 +45,13 @@ func (u *User) Func4() (map[string]string, error) {
 	return nil, nil
 }
 
-func (u *User) Func5() (*settings, error) {
-	return &settings{true}, nil
+func (u *User) Func5() (*Settings, error) {
+	return &Settings{true}, nil
 }
 
 func (u *User) Func6() ([]interface{}, error) {
 	var v []interface{}
-	v = append(v, &settings{true})
+	v = append(v, &Settings{true})
 	return v, nil
 }
 
