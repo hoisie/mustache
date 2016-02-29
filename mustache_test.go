@@ -241,14 +241,34 @@ func TestFile(t *testing.T) {
 
 func TestPartial(t *testing.T) {
 	filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test2.mustache")
-	println(filename)
 	expected := "hello world"
-	output, err := RenderFile(filename, map[string]string{"Name": "world"})
+	tmpl, err := ParseFile(filename)
 	if err != nil {
 		t.Error(err)
+		return
+	}
+	output, err := tmpl.Render(map[string]string{"Name": "world"})
+	if err != nil {
+		t.Error(err)
+		return
 	} else if output != expected {
 		t.Errorf("testpartial expected %q got %q", expected, output)
+		return
 	}
+
+	expectedTags := []tag{
+		{
+			Type: Partial,
+			Name: "partial",
+			Tags: []tag{
+				{
+					Type: Variable,
+					Name: "Name",
+				},
+			},
+		},
+	}
+	compareTags(t, tmpl.Tags(), expectedTags)
 }
 
 /*
@@ -380,6 +400,108 @@ func TestPointerReceiver(t *testing.T) {
 			t.Error(err)
 		} else if output != test.expected {
 			t.Errorf("expected %q got %q", test.expected, output)
+		}
+	}
+}
+
+type tag struct {
+	Type TagType
+	Name string
+	Tags []tag
+}
+
+type tagsTest struct {
+	tmpl string
+	tags []tag
+}
+
+var tagTests = []tagsTest{
+	{
+		tmpl: `hello world`,
+		tags: nil,
+	},
+	{
+		tmpl: `hello {{name}}`,
+		tags: []tag{
+			{
+				Type: Variable,
+				Name: "name",
+			},
+		},
+	},
+	{
+		tmpl: `{{#name}}hello {{name}}{{/name}}{{^name}}hello {{name2}}{{/name}}`,
+		tags: []tag{
+			{
+				Type: Section,
+				Name: "name",
+				Tags: []tag{
+					{
+						Type: Variable,
+						Name: "name",
+					},
+				},
+			},
+			{
+				Type: InvertedSection,
+				Name: "name",
+				Tags: []tag{
+					{
+						Type: Variable,
+						Name: "name2",
+					},
+				},
+			},
+		},
+	},
+}
+
+func TestTags(t *testing.T) {
+	for _, test := range tagTests {
+		testTags(t, &test)
+	}
+}
+
+func testTags(t *testing.T, test *tagsTest) {
+	tmpl, err := ParseString(test.tmpl)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	compareTags(t, tmpl.Tags(), test.tags)
+}
+
+func compareTags(t *testing.T, actual []Tag, expected []tag) {
+	if len(actual) != len(expected) {
+		t.Errorf("expected %d tags, got %d", len(expected), len(actual))
+		return
+	}
+	for i, tag := range actual {
+		if tag.Type() != expected[i].Type {
+			t.Errorf("expected %s, got %s", expected[i].Type, tag.Type())
+			return
+		}
+		if tag.Name() != expected[i].Name {
+			t.Errorf("expected %s, got %s", expected[i].Name, tag.Name())
+			return
+		}
+
+		switch tag.Type() {
+		case Variable:
+			if len(expected[i].Tags) != 0 {
+				t.Errorf("expected %d tags, got 0", len(expected[i].Tags))
+				return
+			}
+		case Section, InvertedSection:
+			compareTags(t, tag.Tags(), expected[i].Tags)
+		case Partial:
+			compareTags(t, tag.Tags(), expected[i].Tags)
+		case Invalid:
+			t.Errorf("invalid tag type: %s", tag.Type())
+			return
+		default:
+			t.Errorf("invalid tag type: %s", tag.Type())
+			return
 		}
 	}
 }
