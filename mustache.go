@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -18,6 +19,50 @@ var (
 	// is generated instead.
 	AllowMissingVariables = true
 )
+
+// A TagType represents the specific type of mustache tag that a Tag
+// represents. The zero TagType is not a valid type.
+type TagType uint
+
+// Defines representing the possible Tag types
+const (
+	Invalid TagType = iota
+	Variable
+	Section
+	InvertedSection
+	Partial
+)
+
+func (t TagType) String() string {
+	if int(t) < len(tagNames) {
+		return tagNames[t]
+	}
+	return "type" + strconv.Itoa(int(t))
+}
+
+var tagNames = []string{
+	Invalid:         "Invalid",
+	Variable:        "Variable",
+	Section:         "Section",
+	InvertedSection: "InvertedSection",
+	Partial:         "Partial",
+}
+
+// Tag represents the different mustache tag types.
+//
+// Not all methods apply to all kinds of tags. Restrictions, if any, are noted
+// in the documentation for each method. Use the Type method to find out the
+// type of tag before calling type-specific methods. Calling a method
+// inappropriate to the type of tag causes a run time panic.
+type Tag interface {
+	// Type returns the type of the tag.
+	Type() TagType
+	// Name returns the name of the tag.
+	Name() string
+	// Tags returns any child tags. It panics for tag types which cannot contain
+	// child tags (i.e. variable tags).
+	Tags() []Tag
+}
 
 type textElement struct {
 	text []byte
@@ -35,6 +80,11 @@ type sectionElement struct {
 	elems     []interface{}
 }
 
+type partialElement struct {
+	name string
+	tmpl *Template
+}
+
 // Template represents a compilde mustache template
 type Template struct {
 	data    string
@@ -49,6 +99,65 @@ type Template struct {
 type parseError struct {
 	line    int
 	message string
+}
+
+// Tags returns the mustache tags for the given template
+func (tmpl *Template) Tags() []Tag {
+	return extractTags(tmpl.elems)
+}
+
+func extractTags(elems []interface{}) []Tag {
+	tags := make([]Tag, 0, len(elems))
+	for _, elem := range elems {
+		switch elem := elem.(type) {
+		case *varElement:
+			tags = append(tags, elem)
+		case *sectionElement:
+			tags = append(tags, elem)
+		case *partialElement:
+			tags = append(tags, elem)
+		}
+	}
+	return tags
+}
+
+func (e *varElement) Type() TagType {
+	return Variable
+}
+
+func (e *varElement) Name() string {
+	return e.name
+}
+
+func (e *varElement) Tags() []Tag {
+	panic("mustache: Tags on Variable type")
+}
+
+func (e *sectionElement) Type() TagType {
+	if e.inverted {
+		return InvertedSection
+	}
+	return Section
+}
+
+func (e *sectionElement) Name() string {
+	return e.name
+}
+
+func (e *sectionElement) Tags() []Tag {
+	return extractTags(e.elems)
+}
+
+func (e *partialElement) Type() TagType {
+	return Partial
+}
+
+func (e *partialElement) Name() string {
+	return e.name
+}
+
+func (e *partialElement) Tags() []Tag {
+	return e.tmpl.Tags()
 }
 
 func (p parseError) Error() string {
@@ -90,7 +199,7 @@ func (tmpl *Template) readString(s string) (string, error) {
 	}
 }
 
-func (tmpl *Template) parsePartial(name string) (*Template, error) {
+func (tmpl *Template) parsePartial(name string) (*partialElement, error) {
 	filenames := []string{
 		path.Join(tmpl.dir, name),
 		path.Join(tmpl.dir, name+".mustache"),
@@ -112,13 +221,16 @@ func (tmpl *Template) parsePartial(name string) (*Template, error) {
 		return nil, fmt.Errorf("Could not find partial %q", name)
 	}
 
-	partial, err := ParseFile(filename)
+	tmpl, err := ParseFile(filename)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return partial, nil
+	return &partialElement{
+		name: name,
+		tmpl: tmpl,
+	}, nil
 }
 
 func (tmpl *Template) parseSection(section *sectionElement) error {
@@ -450,8 +562,8 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 		if err := renderSection(elem, contextChain, buf); err != nil {
 			return err
 		}
-	case *Template:
-		if err := elem.renderTemplate(contextChain, buf); err != nil {
+	case *partialElement:
+		if err := elem.tmpl.renderTemplate(contextChain, buf); err != nil {
 			return err
 		}
 	}
