@@ -29,13 +29,13 @@ To install mustache.go, simply run `go get github.com/cbroglie/mustache`. To use
 There are four main methods in this package:
 
 ```go
-func Render(data string, context ...interface{}) (string, error)
+Render(data string, context ...interface{}) (string, error)
 
-func RenderFile(filename string, context ...interface{}) (string, error)
+RenderFile(filename string, context ...interface{}) (string, error)
 
-func ParseString(data string) (*Template, error)
+ParseString(data string) (*Template, error)
 
-func ParseFile(filename string) (*Template, error)
+ParseFile(filename string) (*Template, error)
 ```
 
 There are also two additional methods for using layouts (explained below).
@@ -67,9 +67,9 @@ mustache.go follows the official mustache HTML escaping rules. That is, if you e
 It is a common pattern to include a template file as a "wrapper" for other templates. The wrapper may include a header and a footer, for instance. Mustache.go supports this pattern with the following two methods:
 
 ```go
-func RenderInLayout(data string, layout string, context ...interface{}) (string, error)
+RenderInLayout(data string, layout string, context ...interface{}) (string, error)
 
-func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) (string, error)
+RenderFileInLayout(filename string, layoutFile string, context ...interface{}) (string, error)
 ```
 
 The layout file must have a variable called `{{content}}`. For example, given the following files:
