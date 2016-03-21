@@ -1,5 +1,5 @@
 .PHONY: all
-all: ci
+all: fmt vet lint test
 
 .PHONY:
 get-deps:
@@ -22,4 +22,4 @@ lint:
 	golint ./...
 
 .PHONY: ci
-ci: fmt vet lint test
+ci: fmt vet test
