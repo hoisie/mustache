@@ -10,7 +10,11 @@ I forked [hoisie/mustache](https://github.com/hoisie/mustache) because it does n
 
 ## Overview
 
-mustache.go is an implementation of the mustache template language in Go. It is better suited for website templates than Go's native pkg/template. mustache.go is fast -- it parses templates efficiently and stores them in a tree-like structure which allows for fast execution. 
+This library is an implementation of the Mustache template language in Go.
+
+### Mustache Spec Compliance
+
+https://github.com/mustache/spec contains the formal standard for Mustache, and it is added as a submodule (using v1.1.3) for testing compliance. Currently ~40% of tests are failing, and the optional lambda support is not implemented. You can see which tests are disabled (b/c they are failing) by looking at spec_test.go. Getting all tests passing is my top priority (time permitting), and any PRs to that end are welcome.
 
 ## Documentation
 
@@ -36,7 +40,7 @@ func ParseFile(filename string) (*Template, error)
 
 There are also two additional methods for using layouts (explained below).
 
-The Render method takes a string and a data source, which is generally a map or struct, and returns the output string. If the template file contains an error, the return value is a description of the error. There's a similar method, RenderFile, which takes a filename as an argument and uses that for the template contents. 
+The Render method takes a string and a data source, which is generally a map or struct, and returns the output string. If the template file contains an error, the return value is a description of the error. There's a similar method, RenderFile, which takes a filename as an argument and uses that for the template contents.
 
 ```go
 data, err := mustache.Render("hello {{c}}", map[string]string{"c": "world"})
@@ -134,5 +138,3 @@ It'll be blank. You either have to use `&Person{"John", "Smith"}`, or call `Name
 * Change delimiter
 * Sections (boolean, enumerable, and inverted)
 * Partials
-
-
