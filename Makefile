@@ -1,10 +1,36 @@
+.PHONY: generate format test
 
-GOFMT=gofmt -s -tabs=false -tabwidth=4
+GOFMT=goimports
 
-GOFILES=\
-	mustache.go\
+IMPORT_BASE := github.com/jabley
+IMPORT_PATH := $(IMPORT_BASE)/mustache
+
+all: _deps _vendor format test
 
 format:
-	${GOFMT} -w ${GOFILES}
-	${GOFMT} -w mustache_test.go 
+	${GOFMT} -w *.go
+	${GOFMT} -w ./parse/*.go
 
+test:
+	gom test -v . ./parse 
+
+coverage:
+	gom test -coverprofile=mustache.coverprofile
+	find . -name '*.coverprofile' -type f -exec sed -i '' 's|_'$(CURDIR)'|\.|' {} \;
+
+generate:
+	gom generate
+	${GOFMT} -w mustache_spec_test.go
+
+_deps:
+	go get github.com/mattn/gom
+	-go get golang.org/x/tools/cmd/goimports
+
+_vendor: Gomfile _vendor/src/$(IMPORT_PATH)
+	gom -test install
+	touch _vendor
+
+_vendor/src/$(IMPORT_PATH):
+	rm -f _vendor/src/$(IMPORT_PATH)
+	mkdir -p _vendor/src/$(IMPORT_BASE)
+	ln -s $(CURDIR) _vendor/src/$(IMPORT_PATH)
