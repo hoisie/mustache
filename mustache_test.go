@@ -1,6 +1,7 @@
 package mustache
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path"
@@ -239,6 +240,24 @@ func TestFile(t *testing.T) {
 		t.Error(err)
 	} else if output != expected {
 		t.Errorf("testfile expected %q got %q", expected, output)
+	}
+}
+
+func TestFRender(t *testing.T) {
+	filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test1.mustache")
+	expected := "hello world"
+	tmpl, err := ParseFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	err = tmpl.FRender(&buf, map[string]string{"name": "world"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := buf.String()
+	if output != expected {
+		t.Fatalf("testfile expected %q got %q", expected, output)
 	}
 }
 
