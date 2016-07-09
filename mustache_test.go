@@ -375,6 +375,28 @@ func TestLayout(t *testing.T) {
 	}
 }
 
+func TestLayoutToWriter(t *testing.T) {
+	for _, test := range layoutTests {
+		tmpl, err := ParseString(test.tmpl)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		layoutTmpl, err := ParseString(test.layout)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		var buf bytes.Buffer
+		err = tmpl.FRenderInLayout(&buf, layoutTmpl, test.context)
+		if err != nil {
+			t.Error(err)
+		} else if buf.String() != test.expected {
+			t.Errorf("%q expected %q got %q", test.tmpl, test.expected, buf.String())
+		}
+	}
+}
+
 type Person struct {
 	FirstName string
 	LastName  string
