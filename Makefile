@@ -1,10 +1,25 @@
+.PHONY: all
+all: fmt vet lint test
 
-GOFMT=gofmt -s -tabs=false -tabwidth=4
+.PHONY:
+get-deps:
+	go get github.com/golang/lint/golint
 
-GOFILES=\
-	mustache.go\
+.PHONY: test
+test:
+	go test -cover ./...
 
-format:
-	${GOFMT} -w ${GOFILES}
-	${GOFMT} -w mustache_test.go 
+.PHONY: fmt
+fmt:
+	go fmt ./...
 
+.PHONY: vet
+vet:
+	go vet ./...
+
+.PHONY: lint
+lint:
+	golint ./...
+
+.PHONY: ci
+ci: fmt vet test
