@@ -581,16 +581,22 @@ func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) 
 	return nil
 }
 
-// Render uses the given data source - generally a map or struct - to render
-// the compiled template and return the output.
-func (tmpl *Template) Render(context ...interface{}) (string, error) {
-	var buf bytes.Buffer
+// FRender uses the given data source - generally a map or struct - to
+// render the compiled template to an io.Writer.
+func (tmpl *Template) FRender(out io.Writer, context ...interface{}) error {
 	var contextChain []interface{}
 	for _, c := range context {
 		val := reflect.ValueOf(c)
 		contextChain = append(contextChain, val)
 	}
-	err := tmpl.renderTemplate(contextChain, &buf)
+	return tmpl.renderTemplate(contextChain, out)
+}
+
+// Render uses the given data source - generally a map or struct - to render
+// the compiled template and return the output.
+func (tmpl *Template) Render(context ...interface{}) (string, error) {
+	var buf bytes.Buffer
+	err := tmpl.FRender(&buf, context...)
 	return buf.String(), err
 }
 
@@ -598,14 +604,26 @@ func (tmpl *Template) Render(context ...interface{}) (string, error) {
 // render the compiled template and layout "wrapper" template and return the
 // output.
 func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) (string, error) {
-	content, err := tmpl.Render(context...)
+	var buf bytes.Buffer
+	err := tmpl.FRenderInLayout(&buf, layout, context...)
 	if err != nil {
 		return "", err
+	}
+	return buf.String(), nil
+}
+
+// FRenderInLayout uses the given data source - generally a map or
+// struct - to render the compiled templated a loayout "wrapper"
+// template to an io.Writer.
+func (tmpl *Template) FRenderInLayout(out io.Writer, layout *Template, context ...interface{}) error {
+	content, err := tmpl.Render(context...)
+	if err != nil {
+		return err
 	}
 	allContext := make([]interface{}, len(context)+1)
 	copy(allContext[1:], context)
 	allContext[0] = map[string]string{"content": content}
-	return layout.Render(allContext...)
+	return layout.FRender(out, allContext...)
 }
 
 // ParseString compiles a mustache template string. The resulting output can

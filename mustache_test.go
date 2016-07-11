@@ -1,6 +1,7 @@
 package mustache
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path"
@@ -242,6 +243,24 @@ func TestFile(t *testing.T) {
 	}
 }
 
+func TestFRender(t *testing.T) {
+	filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test1.mustache")
+	expected := "hello world"
+	tmpl, err := ParseFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	err = tmpl.FRender(&buf, map[string]string{"name": "world"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	output := buf.String()
+	if output != expected {
+		t.Fatalf("testfile expected %q got %q", expected, output)
+	}
+}
+
 func TestPartial(t *testing.T) {
 	filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test2.mustache")
 	expected := "hello world"
@@ -352,6 +371,28 @@ func TestLayout(t *testing.T) {
 			t.Error(err)
 		} else if output != test.expected {
 			t.Errorf("%q expected %q got %q", test.tmpl, test.expected, output)
+		}
+	}
+}
+
+func TestLayoutToWriter(t *testing.T) {
+	for _, test := range layoutTests {
+		tmpl, err := ParseString(test.tmpl)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		layoutTmpl, err := ParseString(test.layout)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+		var buf bytes.Buffer
+		err = tmpl.FRenderInLayout(&buf, layoutTmpl, test.context)
+		if err != nil {
+			t.Error(err)
+		} else if buf.String() != test.expected {
+			t.Errorf("%q expected %q got %q", test.tmpl, test.expected, buf.String())
 		}
 	}
 }
