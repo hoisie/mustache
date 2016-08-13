@@ -13,6 +13,11 @@ import (
     "strings"
 )
 
+const (
+    OTag = "{{"
+    CTag = "}}"
+)
+
 type textElement struct {
     text []byte
 }
@@ -30,13 +35,14 @@ type sectionElement struct {
 }
 
 type Template struct {
-    data    string
-    otag    string
-    ctag    string
-    p       int
-    curline int
-    dir     string
-    elems   []interface{}
+    data         string
+    otag         string
+    ctag         string
+    p            int
+    curline      int
+    dir          string
+    elems        []interface{}
+    partialPaths map[string]string
 }
 
 type parseError struct {
@@ -97,8 +103,16 @@ func (tmpl *Template) readString(s string) (string, error) {
 }
 
 func (tmpl *Template) parsePartial(name string) (*Template, error) {
+    // attempt to get a registered path
+    path0 := path.Join(tmpl.dir, name)
+    if tmpl.partialPaths != nil {
+        if v, ok := tmpl.partialPaths[name]; ok {
+            path0 = v
+        }
+    }
+    // continue
     filenames := []string{
-        path.Join(tmpl.dir, name),
+        path0,
         path.Join(tmpl.dir, name+".mustache"),
         path.Join(tmpl.dir, name+".stache"),
         name,
@@ -502,6 +516,14 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
     }
 }
 
+func (tmpl *Template) init() {
+    tmpl.otag = OTag
+    tmpl.ctag = CTag
+    tmpl.p = 0
+    tmpl.curline = 1
+    tmpl.elems = []interface{}{}
+}
+
 func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) {
     for _, elem := range tmpl.elems {
         renderElement(elem, contextChain, buf)
@@ -527,9 +549,42 @@ func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) s
     return layout.Render(allContext...)
 }
 
+// registers a path to a partial
+func (tmpl *Template) SetPartialPath(partialName string, partialPath string) {
+    if tmpl.partialPaths == nil {
+        tmpl.partialPaths = make(map[string]string, 0)
+    }
+    tmpl.partialPaths[partialName] = partialPath
+}
+
+// created this function to allow SetPartialPath to run before any parsing
+func (tmpl *Template) ParseFile(filename string) error {
+    data, err := ioutil.ReadFile(filename)
+    if err != nil {
+        return err
+    }
+    dirname, _ := path.Split(filename)
+    if len(tmpl.otag) < 1 {
+        tmpl.init()
+    }
+    tmpl.data = string(data)
+    tmpl.dir = dirname
+    err = tmpl.parse()
+    return err
+}
+
+func New() *Template {
+    tmpl := &Template{}
+    tmpl.init()
+    return tmpl
+}
+
 func ParseString(data string) (*Template, error) {
     cwd := os.Getenv("CWD")
-    tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}}
+    tmpl := New()
+    tmpl.data = data
+    tmpl.dir = cwd
+
     err := tmpl.parse()
 
     if err != nil {
@@ -547,7 +602,10 @@ func ParseFile(filename string) (*Template, error) {
 
     dirname, _ := path.Split(filename)
 
-    tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}}
+    tmpl := New()
+    tmpl.data = string(data)
+    tmpl.dir = dirname
+
     err = tmpl.parse()
 
     if err != nil {

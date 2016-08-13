@@ -203,6 +203,27 @@ func TestPartial(t *testing.T) {
     }
 }
 
+func TestRemotePartials(t *testing.T) {
+    tpl := New()
+    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test4.mustache")
+    partialFilename := path.Join(path.Join(os.Getenv("PWD"), "tests/partials"), "article.mustache")
+    tpl.SetPartialPath("article", partialFilename)
+    content := make(map[string][]map[string]string, 0)
+    content["articles"] = make([]map[string]string, 2)
+    content["articles"][0] = make(map[string]string, 0)
+    content["articles"][0]["name"] = "Mike"
+    content["articles"][0]["amount"] = "10"
+    content["articles"][1] = make(map[string]string, 0)
+    content["articles"][1]["name"] = "Bill"
+    content["articles"][1]["amount"] = "6"
+    tpl.ParseFile(filename)
+    output := tpl.Render(content)
+    expected := "  Mike has 10 articles.\n  Bill has 6 articles.\n"
+    if output != expected {
+        t.Fatalf("testpartial expected %q got %q", expected, output)
+    }
+}
+
 /*
 func TestSectionPartial(t *testing.T) {
     filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test3.mustache")
