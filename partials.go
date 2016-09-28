@@ -30,7 +30,7 @@ func (fp *FileProvider) Get(name string) (*Template, error) {
 	}
 
 	if filename == "" {
-		return &Template{"", "{{", "}}", 0, 1, "", []interface{}{}, nil}, nil
+		return ParseString("")
 	}
 
 	return ParseFile(filename)
@@ -40,14 +40,8 @@ type StaticProvider map[string]string
 
 func (sp StaticProvider) Get(name string) (*Template, error) {
 	if data, ok := sp[name]; ok {
-		tmpl := Template{data, "{{", "}}", 0, 1, "", []interface{}{}, sp}
-		err := tmpl.parse()
-		if err != nil {
-			return nil, err
-		}
-
-		return &tmpl, nil
+		return ParseStringPartials(data, sp)
 	}
 
-	return &Template{"", "{{", "}}", 0, 1, "", []interface{}{}, nil}, nil
+	return ParseString("")
 }
