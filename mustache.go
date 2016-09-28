@@ -691,14 +691,31 @@ func RenderPartials(data string, partials PartialProvider, context ...interface{
 // uses the given data source - generally a map or struct - to render the
 // compiled templates and return the output.
 func RenderInLayout(data string, layoutData string, context ...interface{}) (string, error) {
-	layoutTmpl, err := ParseString(layoutData)
+	return RenderInLayoutPartials(data, layoutData, nil, context...)
+}
+
+func RenderInLayoutPartials(data string, layoutData string, partials PartialProvider, context ...interface{}) (string, error) {
+	var layoutTmpl, tmpl *Template
+	var err error
+	if partials == nil {
+		layoutTmpl, err = ParseString(layoutData)
+	} else {
+		layoutTmpl, err = ParseStringPartials(layoutData, partials)
+	}
 	if err != nil {
 		return "", err
 	}
-	tmpl, err := ParseString(data)
+
+	if partials == nil {
+		tmpl, err = ParseString(data)
+	} else {
+		tmpl, err = ParseStringPartials(data, partials)
+	}
+
 	if err != nil {
 		return "", err
 	}
+
 	return tmpl.RenderInLayout(layoutTmpl, context...)
 }
 
