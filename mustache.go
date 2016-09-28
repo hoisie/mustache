@@ -204,8 +204,7 @@ func (tmpl *Template) parsePartial(name string) (*partialElement, error) {
 	var prov PartialProvider
 	if tmpl.partial == nil {
 		prov = &FileProvider{
-			Paths:      []string{tmpl.dir, ""},
-			Extensions: []string{"", ".mustache", ".stache"},
+			Paths: []string{tmpl.dir, " "},
 		}
 	} else {
 		prov = tmpl.partial

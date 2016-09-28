@@ -17,8 +17,22 @@ type FileProvider struct {
 func (fp *FileProvider) Get(name string) (*Template, error) {
 	var filename string
 
-	for _, p := range fp.Paths {
-		for _, e := range fp.Extensions {
+	var paths []string
+	if fp.Paths != nil {
+		paths = fp.Paths
+	} else {
+		paths = []string{""}
+	}
+
+	var exts []string
+	if fp.Extensions != nil {
+		exts = fp.Extensions
+	} else {
+		exts = []string{"", ".mustache", ".stache"}
+	}
+
+	for _, p := range paths {
+		for _, e := range exts {
 			name := path.Join(p, name+e)
 			f, err := os.Open(name)
 			if err == nil {
