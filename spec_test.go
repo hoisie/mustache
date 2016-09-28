@@ -29,7 +29,7 @@ var enabledTests = map[string]map[string]bool{
 		"Sections":                         false,
 		"Inverted Sections":                false,
 		"Partial Inheritence":              false,
-		"Post-Partial Behavior":            false,
+		"Post-Partial Behavior":            true,
 		"Outlying Whitespace (Inline)":     true,
 		"Standalone Tag":                   false,
 		"Indented Standalone Tag":          false,
