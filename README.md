@@ -38,7 +38,7 @@ ParseString(data string) (*Template, error)
 ParseFile(filename string) (*Template, error)
 ```
 
-There are also two additional methods for using layouts (explained below).
+There are also two additional methods for using layouts (explained below); as well as several more that can provide a custom Partial retrieval.
 
 The Render method takes a string and a data source, which is generally a map or struct, and returns the output string. If the template file contains an error, the return value is a description of the error. There's a similar method, RenderFile, which takes a filename as an argument and uses that for the template contents.
 
@@ -102,6 +102,47 @@ A call to `RenderFileInLayout("template.html.mustache", "layout.html.mustache", 
 </html>
 ```
 
+## Custom PartialProvider
+
+Mustache.go has been extended to support a user-defined repository for mustache partials, instead of the default of requiring file-based templates.
+
+Several new top-level functions have been introduced to take advantage of this:
+
+```go
+
+func RenderPartials(data string, partials PartialProvider, context ...interface{}) (string, error)
+
+func RenderInLayoutPartials(data string, layoutData string, partials PartialProvider, context ...interface{}) (string, error)
+
+func ParseStringPartials(data string, partials PartialProvider) (*Template, error)
+
+func ParseFilePartials(filename string, partials PartialProvider) (*Template, error)
+
+```
+
+A `PartialProvider` is any object that responds to `Get(string)
+(*Template,error)`, and two examples are provided- a `FileProvider` that
+recreates the old behavior (and is indeed used internally for backwards
+compatibility); and a `StaticProvider` alias for a `map[string]string`. Using
+either of these is simple:
+
+```go
+
+fp := &FileProvider{
+  Paths: []string{ "", "/opt/mustache", "templates/" },
+  Extensions: []string{ "", ".stache", ".mustache" },
+}
+
+tmpl, err := ParseStringPartials("This partial is loaded from a file: {{>foo}}", fp)
+
+sp := StaticProvider(map[string]string{
+  "foo": "{{>bar}}",
+  "bar": "some data",
+})
+
+tmpl, err := ParseStringPartials("This partial is loaded from a map: {{>foo}}", sp)
+```
+
 ## A note about method receivers
 
 Mustache.go supports calling methods on objects, but you have to be aware of Go's limitations. For example, lets's say you have the following type:
@@ -109,7 +150,7 @@ Mustache.go supports calling methods on objects, but you have to be aware of Go'
 ```go
 type Person struct {
     FirstName string
-    LastName string    
+    LastName string
 }
 
 func (p *Person) Name1() string {
