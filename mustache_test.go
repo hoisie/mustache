@@ -277,20 +277,6 @@ func TestPartial(t *testing.T) {
 		t.Errorf("testpartial expected %q got %q", expected, output)
 		return
 	}
-
-	expectedTags := []tag{
-		{
-			Type: Partial,
-			Name: "partial",
-			Tags: []tag{
-				{
-					Type: Variable,
-					Name: "Name",
-				},
-			},
-		},
-	}
-	compareTags(t, tmpl.Tags(), expectedTags)
 }
 
 /*
