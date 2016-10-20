@@ -548,9 +548,11 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 			return err
 		}
 	case *partialElement:
-		if partial, err := elem.prov.Get(elem.name); err != nil {
+		partial, err := elem.prov.Get(elem.name)
+		if err != nil {
 			return err
-		} else if err := partial.renderTemplate(contextChain, buf); err != nil {
+		}
+		if err := partial.renderTemplate(contextChain, buf); err != nil {
 			return err
 		}
 	}
