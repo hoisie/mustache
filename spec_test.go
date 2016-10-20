@@ -29,7 +29,7 @@ var enabledTests = map[string]map[string]bool{
 		"Sections":                         false,
 		"Inverted Sections":                false,
 		"Partial Inheritence":              false,
-		"Post-Partial Behavior":            false,
+		"Post-Partial Behavior":            true,
 		"Outlying Whitespace (Inline)":     true,
 		"Standalone Tag":                   false,
 		"Indented Standalone Tag":          false,
@@ -95,17 +95,17 @@ var enabledTests = map[string]map[string]bool{
 		"Standalone Without Newline":       false,
 	},
 	"partials.json": map[string]bool{
-		"Basic Behavior":                   false,
-		"Failed Lookup":                    false,
-		"Context":                          false,
-		"Recursion":                        false,
-		"Surrounding Whitespace":           false,
-		"Inline Indentation":               false,
+		"Basic Behavior":                   true,
+		"Failed Lookup":                    true,
+		"Context":                          true,
+		"Recursion":                        true,
+		"Surrounding Whitespace":           true,
+		"Inline Indentation":               true,
 		"Standalone Line Endings":          false,
 		"Standalone Without Previous Line": false,
 		"Standalone Without Newline":       false,
 		"Standalone Indentation":           false,
-		"Padding Whitespace":               false,
+		"Padding Whitespace":               true,
 	},
 	"sections.json": map[string]bool{
 		"Truthy":                 true,
@@ -139,11 +139,12 @@ var enabledTests = map[string]map[string]bool{
 }
 
 type specTest struct {
-	Name        string      `json:"name"`
-	Data        interface{} `json:"data"`
-	Expected    string      `json:"expected"`
-	Template    string      `json:"template"`
-	Description string      `json:"desc"`
+	Name        string            `json:"name"`
+	Data        interface{}       `json:"data"`
+	Expected    string            `json:"expected"`
+	Template    string            `json:"template"`
+	Description string            `json:"desc"`
+	Partials    map[string]string `json:"partials"`
 }
 
 type specTestSuite struct {
@@ -200,7 +201,13 @@ func runTest(t *testing.T, file string, test *specTest) {
 		return
 	}
 
-	out, err := Render(test.Template, test.Data)
+	var out string
+	var err error
+	if len(test.Partials) > 0 {
+		out, err = RenderPartials(test.Template, &StaticProvider{test.Partials}, test.Data)
+	} else {
+		out, err = Render(test.Template, test.Data)
+	}
 	if err != nil {
 		t.Errorf("[%s %s]: %s", file, test.Name, err.Error())
 		return

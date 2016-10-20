@@ -282,12 +282,6 @@ func TestPartial(t *testing.T) {
 		{
 			Type: Partial,
 			Name: "partial",
-			Tags: []tag{
-				{
-					Type: Variable,
-					Name: "Name",
-				},
-			},
 		},
 	}
 	compareTags(t, tmpl.Tags(), expectedTags)
