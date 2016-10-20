@@ -643,7 +643,7 @@ func ParseFile(filename string) (*Template, error) {
 	return ParseFilePartials(filename, nil)
 }
 
-// ParseFile loads a mustache template string from a file, retrieving any
+// ParseFilePartials loads a mustache template string from a file, retrieving any
 // required partials from the given provider, and compiles it. The resulting
 // output can be used to efficiently render the template multiple times with
 // different data sources.
@@ -671,7 +671,7 @@ func Render(data string, context ...interface{}) (string, error) {
 	return RenderPartials(data, nil, context...)
 }
 
-// Render compiles a mustache template string and uses the the given partial
+// RenderPartials compiles a mustache template string and uses the the given partial
 // provider and data source - generally a map or struct - to render the template
 // and return the output.
 func RenderPartials(data string, partials PartialProvider, context ...interface{}) (string, error) {
