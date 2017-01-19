@@ -347,7 +347,7 @@ func lookup(contextChain []interface{}, name string) reflect.Value {
     // dot notation
     if name != "." && strings.Contains(name, ".") {
         parts := strings.SplitN(name, ".", 2)
-        
+
         v := lookup(contextChain, parts[0])
         return lookup([]interface{}{v}, parts[1])
     }
@@ -528,8 +528,15 @@ func (tmpl *Template) RenderInLayout(layout *Template, context ...interface{}) s
 }
 
 func ParseString(data string) (*Template, error) {
-    cwd := os.Getenv("CWD")
-    tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}}
+    cwd, err := os.Getwd()
+    if err != nil {
+        return nil, err
+    }
+    return ParseStringInDir(data, cwd)
+}
+
+func ParseStringInDir(data string, dir string) (*Template, error) {
+    tmpl := Template{data, "{{", "}}", 0, 1, dir, []interface{}{}}
     err := tmpl.parse()
 
     if err != nil {
@@ -547,14 +554,7 @@ func ParseFile(filename string) (*Template, error) {
 
     dirname, _ := path.Split(filename)
 
-    tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}}
-    err = tmpl.parse()
-
-    if err != nil {
-        return nil, err
-    }
-
-    return &tmpl, nil
+    return ParseStringInDir(string(data), dirname)
 }
 
 func Render(data string, context ...interface{}) string {

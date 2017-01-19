@@ -185,7 +185,11 @@ func TestBasic(t *testing.T) {
 }
 
 func TestFile(t *testing.T) {
-    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test1.mustache")
+    cwd, err := os.Getwd()
+    if err != nil {
+        t.Fatalf("couldn't get working directory: %s", err)
+    }
+    filename := path.Join(cwd, "tests", "test1.mustache")
     expected := "hello world"
     output := RenderFile(filename, map[string]string{"name": "world"})
     if output != expected {
@@ -194,7 +198,11 @@ func TestFile(t *testing.T) {
 }
 
 func TestPartial(t *testing.T) {
-    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test2.mustache")
+    cwd, err := os.Getwd()
+    if err != nil {
+        t.Fatalf("couldn't get working directory: %s", err)
+    }
+    filename := path.Join(cwd, "tests", "test2.mustache")
     println(filename)
     expected := "hello world"
     output := RenderFile(filename, map[string]string{"Name": "world"})
@@ -203,9 +211,12 @@ func TestPartial(t *testing.T) {
     }
 }
 
-/*
 func TestSectionPartial(t *testing.T) {
-    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test3.mustache")
+    cwd, err := os.Getwd()
+    if err != nil {
+        t.Fatalf("couldn't get working directory: %s", err)
+    }
+    filename := path.Join(cwd, "tests", "test3.mustache")
     expected := "Mike\nJoe\n"
     context := map[string]interface{}{"users": []User{{"Mike", 1}, {"Joe", 2}}}
     output := RenderFile(filename, context)
@@ -213,7 +224,7 @@ func TestSectionPartial(t *testing.T) {
         t.Fatalf("testSectionPartial expected %q got %q", expected, output)
     }
 }
-*/
+
 func TestMultiContext(t *testing.T) {
     output := Render(`{{hello}} {{World}}`, map[string]string{"hello": "hello"}, struct{ World string }{"world"})
     output2 := Render(`{{hello}} {{World}}`, struct{ World string }{"world"}, map[string]string{"hello": "hello"})

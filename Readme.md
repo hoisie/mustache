@@ -1,6 +1,6 @@
 ## Overview
 
-mustache.go is an implementation of the mustache template language in Go. It is better suited for website templates than Go's native pkg/template. mustache.go is fast -- it parses templates efficiently and stores them in a tree-like structure which allows for fast execution. 
+mustache.go is an implementation of the mustache template language in Go. It is better suited for website templates than Go's native pkg/template. mustache.go is fast -- it parses templates efficiently and stores them in a tree-like structure which allows for fast execution.
 
 ## Documentation
 
@@ -21,12 +21,14 @@ func RenderFile(filename string, context ...interface{}) string
 
 func ParseString(data string) (*Template, os.Error)
 
+func ParseStringInDir(data string, dir string) (*Template, os.Error)
+
 func ParseFile(filename string) (*Template, os.Error)
 ```
 
 There are also two additional methods for using layouts (explained below).
 
-The Render method takes a string and a data source, which is generally a map or struct, and returns the output string. If the template file contains an error, the return value is a description of the error. There's a similar method, RenderFile, which takes a filename as an argument and uses that for the template contents. 
+The `Render` method takes a string and a data source, which is generally a map or struct, and returns the output string. If the template file contains an error, the return value is a description of the error. There's a similar method, `RenderFile`, which takes a filename as an argument and uses that for the template contents.
 
 ```go
 data := mustache.Render("hello {{c}}", map[string]string{"c":"world"})
@@ -39,7 +41,7 @@ If you're planning to render the same template multiple times, you do it efficie
 tmpl,_ := mustache.ParseString("hello {{c}}")
 var buf bytes.Buffer;
 for i := 0; i < 10; i++ {
-    tmpl.Render (map[string]string { "c":"world"}, &buf)  
+    tmpl.Render(map[string]string{"c":"world"}, &buf)
 }
 ```
 
@@ -58,7 +60,7 @@ func RenderInLayout(data string, layout string, context ...interface{}) string
 
 func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) string
 ```
-    
+
 The layout file must have a variable called `{{content}}`. For example, given the following files:
 
 layout.html.mustache:
@@ -96,7 +98,7 @@ Mustache.go supports calling methods on objects, but you have to be aware of Go'
 ```go
 type Person struct {
     FirstName string
-    LastName string    
+    LastName string
 }
 
 func (p *Person) Name1() string {
