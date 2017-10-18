@@ -87,14 +87,15 @@ type partialElement struct {
 
 // Template represents a compilde mustache template
 type Template struct {
-	data    string
-	otag    string
-	ctag    string
-	p       int
-	curline int
-	dir     string
-	elems   []interface{}
-	partial PartialProvider
+	data     string
+	otag     string
+	ctag     string
+	p        int
+	curline  int
+	dir      string
+	elems    []interface{}
+	forceRaw bool
+	partial  PartialProvider
 }
 
 type parseError struct {
@@ -293,7 +294,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 				section.elems = append(section.elems, &varElement{tag[1 : len(tag)-1], true})
 			}
 		default:
-			section.elems = append(section.elems, &varElement{tag, false})
+			section.elems = append(section.elems, &varElement{tag, tmpl.forceRaw})
 		}
 	}
 }
@@ -371,7 +372,7 @@ func (tmpl *Template) parse() error {
 				tmpl.elems = append(tmpl.elems, &varElement{tag[1 : len(tag)-1], true})
 			}
 		default:
-			tmpl.elems = append(tmpl.elems, &varElement{tag, false})
+			tmpl.elems = append(tmpl.elems, &varElement{tag, tmpl.forceRaw})
 		}
 	}
 }
@@ -617,7 +618,11 @@ func (tmpl *Template) FRenderInLayout(out io.Writer, layout *Template, context .
 // be used to efficiently render the template multiple times with different data
 // sources.
 func ParseString(data string) (*Template, error) {
-	return ParseStringPartials(data, nil)
+	return ParseStringRaw(data, false)
+}
+
+func ParseStringRaw(data string, forceRaw bool) (*Template, error) {
+	return ParseStringPartialsRaw(data, nil, forceRaw)
 }
 
 // ParseStringPartials compiles a mustache template string, retrieving any
@@ -625,8 +630,12 @@ func ParseString(data string) (*Template, error) {
 // to efficiently render the template multiple times with different data
 // sources.
 func ParseStringPartials(data string, partials PartialProvider) (*Template, error) {
+	return ParseStringPartialsRaw(data, partials, false)
+}
+
+func ParseStringPartialsRaw(data string, partials PartialProvider, forceRaw bool) (*Template, error) {
 	cwd := os.Getenv("CWD")
-	tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}, partials}
+	tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}, forceRaw, partials}
 	err := tmpl.parse()
 
 	if err != nil {
@@ -648,6 +657,10 @@ func ParseFile(filename string) (*Template, error) {
 // output can be used to efficiently render the template multiple times with
 // different data sources.
 func ParseFilePartials(filename string, partials PartialProvider) (*Template, error) {
+	return ParseFilePartialsRaw(filename, false, partials)
+}
+
+func ParseFilePartialsRaw(filename string, forceRaw bool, partials PartialProvider) (*Template, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -655,7 +668,7 @@ func ParseFilePartials(filename string, partials PartialProvider) (*Template, er
 
 	dirname, _ := path.Split(filename)
 
-	tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}, partials}
+	tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}, forceRaw, partials}
 	err = tmpl.parse()
 
 	if err != nil {
@@ -668,19 +681,27 @@ func ParseFilePartials(filename string, partials PartialProvider) (*Template, er
 // Render compiles a mustache template string and uses the the given data source
 // - generally a map or struct - to render the template and return the output.
 func Render(data string, context ...interface{}) (string, error) {
-	return RenderPartials(data, nil, context...)
+	return RenderRaw(data, false, context...)
+}
+
+func RenderRaw(data string, forceRaw bool, context ...interface{}) (string, error) {
+	return RenderPartialsRaw(data, nil, forceRaw, context...)
 }
 
 // RenderPartials compiles a mustache template string and uses the the given partial
 // provider and data source - generally a map or struct - to render the template
 // and return the output.
 func RenderPartials(data string, partials PartialProvider, context ...interface{}) (string, error) {
+	return RenderPartialsRaw(data, partials, false, context)
+}
+
+func RenderPartialsRaw(data string, partials PartialProvider, forceRaw bool, context ...interface{}) (string, error) {
 	var tmpl *Template
 	var err error
 	if partials == nil {
-		tmpl, err = ParseString(data)
+		tmpl, err = ParseStringRaw(data, forceRaw)
 	} else {
-		tmpl, err = ParseStringPartials(data, partials)
+		tmpl, err = ParseStringPartialsRaw(data, partials, forceRaw)
 	}
 	if err != nil {
 		return "", err
