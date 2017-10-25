@@ -692,7 +692,7 @@ func RenderRaw(data string, forceRaw bool, context ...interface{}) (string, erro
 // provider and data source - generally a map or struct - to render the template
 // and return the output.
 func RenderPartials(data string, partials PartialProvider, context ...interface{}) (string, error) {
-	return RenderPartialsRaw(data, partials, false, context)
+	return RenderPartialsRaw(data, partials, false, context...)
 }
 
 func RenderPartialsRaw(data string, partials PartialProvider, forceRaw bool, context ...interface{}) (string, error) {
