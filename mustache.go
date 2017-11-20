@@ -98,7 +98,6 @@ type Template struct {
 	ctag     string
 	p        int
 	curline  int
-	dir      string
 	elems    []interface{}
 	forceRaw bool
 	partial  PartialProvider
@@ -312,18 +311,9 @@ func (tmpl *Template) readTag(mayStandalone bool) (*tagReadingResult, error) {
 }
 
 func (tmpl *Template) parsePartial(name string) (*partialElement, error) {
-	var prov PartialProvider
-	if tmpl.partial == nil {
-		prov = &FileProvider{
-			Paths: []string{tmpl.dir, " "},
-		}
-	} else {
-		prov = tmpl.partial
-	}
-
 	return &partialElement{
 		name: name,
-		prov: prov,
+		prov: tmpl.partial,
 	}, nil
 }
 
@@ -711,7 +701,12 @@ func ParseString(data string) (*Template, error) {
 }
 
 func ParseStringRaw(data string, forceRaw bool) (*Template, error) {
-	return ParseStringPartialsRaw(data, nil, forceRaw)
+	cwd := os.Getenv("CWD")
+	partials := &FileProvider{
+		Paths: []string{cwd, " "},
+	}
+
+	return ParseStringPartialsRaw(data, partials, forceRaw)
 }
 
 // ParseStringPartials compiles a mustache template string, retrieving any
@@ -723,8 +718,7 @@ func ParseStringPartials(data string, partials PartialProvider) (*Template, erro
 }
 
 func ParseStringPartialsRaw(data string, partials PartialProvider, forceRaw bool) (*Template, error) {
-	cwd := os.Getenv("CWD")
-	tmpl := Template{data, "{{", "}}", 0, 1, cwd, []interface{}{}, forceRaw, partials}
+	tmpl := Template{data, "{{", "}}", 0, 1, []interface{}{}, forceRaw, partials}
 	err := tmpl.parse()
 
 	if err != nil {
@@ -738,7 +732,12 @@ func ParseStringPartialsRaw(data string, partials PartialProvider, forceRaw bool
 // resulting output can be used to efficiently render the template multiple
 // times with different data sources.
 func ParseFile(filename string) (*Template, error) {
-	return ParseFilePartials(filename, nil)
+	dirname, _ := path.Split(filename)
+	partials := &FileProvider{
+		Paths: []string{dirname, " "},
+	}
+
+	return ParseFilePartials(filename, partials)
 }
 
 // ParseFilePartials loads a mustache template string from a file, retrieving any
@@ -755,9 +754,7 @@ func ParseFilePartialsRaw(filename string, forceRaw bool, partials PartialProvid
 		return nil, err
 	}
 
-	dirname, _ := path.Split(filename)
-
-	tmpl := Template{string(data), "{{", "}}", 0, 1, dirname, []interface{}{}, forceRaw, partials}
+	tmpl := Template{string(data), "{{", "}}", 0, 1, []interface{}{}, forceRaw, partials}
 	err = tmpl.parse()
 
 	if err != nil {
