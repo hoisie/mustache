@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 )
 
 // PartialProvider comprises the behaviors required of a struct to be able to provide partials to the mustache rendering
@@ -85,11 +86,15 @@ func (sp *StaticProvider) Get(name string) (string, error) {
 
 var _ PartialProvider = (*StaticProvider)(nil)
 
-func getPartials(partials PartialProvider, name string) (*Template, error) {
+func getPartials(partials PartialProvider, name, indent string) (*Template, error) {
 	data, err := partials.Get(name)
 	if err != nil {
 		return nil, err
 	}
+
+	// indent non empty lines
+	r := regexp.MustCompile(`(?m:^(.+)$)`)
+	data = r.ReplaceAllString(data, indent+"$1")
 
 	return ParseStringPartials(data, partials)
 }

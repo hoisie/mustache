@@ -87,8 +87,9 @@ type sectionElement struct {
 }
 
 type partialElement struct {
-	name string
-	prov PartialProvider
+	name   string
+	indent string
+	prov   PartialProvider
 }
 
 // Template represents a compilde mustache template
@@ -310,10 +311,11 @@ func (tmpl *Template) readTag(mayStandalone bool) (*tagReadingResult, error) {
 	}, nil
 }
 
-func (tmpl *Template) parsePartial(name string) (*partialElement, error) {
+func (tmpl *Template) parsePartial(name, indent string) (*partialElement, error) {
 	return &partialElement{
-		name: name,
-		prov: tmpl.partial,
+		name:   name,
+		indent: indent,
+		prov:   tmpl.partial,
 	}, nil
 }
 
@@ -362,7 +364,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 			return nil
 		case '>':
 			name := strings.TrimSpace(tag[1:])
-			partial, err := tmpl.parsePartial(name)
+			partial, err := tmpl.parsePartial(name, textResult.padding)
 			if err != nil {
 				return err
 			}
@@ -430,7 +432,7 @@ func (tmpl *Template) parse() error {
 			return parseError{tmpl.curline, "unmatched close tag"}
 		case '>':
 			name := strings.TrimSpace(tag[1:])
-			partial, err := tmpl.parsePartial(name)
+			partial, err := tmpl.parsePartial(name, textResult.padding)
 			if err != nil {
 				return err
 			}
@@ -628,7 +630,7 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 			return err
 		}
 	case *partialElement:
-		partial, err := getPartials(elem.prov, elem.name)
+		partial, err := getPartials(elem.prov, elem.name, elem.indent)
 		if err != nil {
 			return err
 		}
