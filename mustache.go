@@ -628,7 +628,7 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 			return err
 		}
 	case *partialElement:
-		partial, err := elem.prov.Get(elem.name)
+		partial, err := getPartials(elem.prov, elem.name)
 		if err != nil {
 			return err
 		}
