@@ -102,9 +102,9 @@ var enabledTests = map[string]map[string]bool{
 		"Surrounding Whitespace":           true,
 		"Inline Indentation":               true,
 		"Standalone Line Endings":          true,
-		"Standalone Without Previous Line": false,
-		"Standalone Without Newline":       false,
-		"Standalone Indentation":           false,
+		"Standalone Without Previous Line": true,
+		"Standalone Without Newline":       true,
+		"Standalone Indentation":           true,
 		"Padding Whitespace":               true,
 	},
 	"sections.json": map[string]bool{
