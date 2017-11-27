@@ -384,6 +384,9 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 				//use a raw tag
 				section.elems = append(section.elems, &varElement{tag[1 : len(tag)-1], true})
 			}
+		case '&':
+			name := strings.TrimSpace(tag[1:])
+			section.elems = append(section.elems, &varElement{name, true})
 		default:
 			section.elems = append(section.elems, &varElement{tag, tmpl.forceRaw})
 		}
@@ -452,6 +455,9 @@ func (tmpl *Template) parse() error {
 			if tag[len(tag)-1] == '}' {
 				tmpl.elems = append(tmpl.elems, &varElement{tag[1 : len(tag)-1], true})
 			}
+		case '&':
+			name := strings.TrimSpace(tag[1:])
+			tmpl.elems = append(tmpl.elems, &varElement{name, true})
 		default:
 			tmpl.elems = append(tmpl.elems, &varElement{tag, tmpl.forceRaw})
 		}
