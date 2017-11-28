@@ -86,6 +86,8 @@ var tests = []Test{
 	{`hello {{name}}`, map[string]string{"name": "world"}, "hello world", nil},
 	{`{{var}}`, map[string]string{"var": "5 > 2"}, "5 &gt; 2", nil},
 	{`{{{var}}}`, map[string]string{"var": "5 > 2"}, "5 > 2", nil},
+	{`{{var}}`, map[string]string{"var": "& \" < >"}, "&amp; &#34; &lt; &gt;", nil},
+	{`{{{var}}}`, map[string]string{"var": "& \" < >"}, "& \" < >", nil},
 	{`{{a}}{{b}}{{c}}{{d}}`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "abcd", nil},
 	{`0{{a}}1{{b}}23{{c}}456{{d}}89`, map[string]string{"a": "a", "b": "b", "c": "c", "d": "d"}, "0a1b23c456d89", nil},
 	{`hello {{! comment }}world`, map[string]string{}, "hello world", nil},
