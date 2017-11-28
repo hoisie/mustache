@@ -14,7 +14,7 @@ This library is an implementation of the Mustache template language in Go.
 
 ### Mustache Spec Compliance
 
-[mustache/spec](https://github.com/mustache/spec) contains the formal standard for Mustache, and it is included as a submodule (using v1.1.3) for testing compliance. All of the tests pass (big thanks to @kei10in), though the optional lambda support has not been implemented.
+[mustache/spec](https://github.com/mustache/spec) contains the formal standard for Mustache, and it is included as a submodule (using v1.1.3) for testing compliance. All of the tests pass (big thanks to [kei10in](https://github.com/kei10in)), though the optional lambda support has not been implemented.
 
 ## Documentation
 
