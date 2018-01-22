@@ -7,7 +7,7 @@ get-deps:
 
 .PHONY: test
 test:
-	go test -cover
+	go test -cover ./...
 
 .PHONY: fmt
 fmt:
