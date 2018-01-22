@@ -8,7 +8,24 @@ I forked [hoisie/mustache](https://github.com/hoisie/mustache) because it does n
 - Update the API to follow the idiomatic Go convention of returning errors (this is a breaking change)
 - Add option to treat missing variables as errors
 
-## Overview
+## CLI Overview
+
+```
+➜  ~ go get github.com/cbroglie/mustache/...
+➜  ~ mustache
+Usage:
+  mustache [data] template [flags]
+
+Examples:
+  $ mustache data.yml template.mustache
+  $ cat data.yml | mustache template.mustache
+
+Flags:
+  -h, --help   help for mustache
+➜  ~
+```
+
+## Package Overview
 
 This library is an implementation of the Mustache template language in Go.
 
