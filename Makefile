@@ -7,7 +7,7 @@ get-deps:
 
 .PHONY: test
 test:
-	go test -cover ./...
+	go test -race -coverprofile=coverage.txt -covermode=atomic ./...
 
 .PHONY: fmt
 fmt:

@@ -7,4 +7,5 @@ go:
 script: make ci
 
 after_success:
+- curl -sL https://codecov.io/bash | bash
 - test -n "$TRAVIS_TAG" && curl -sL https://git.io/goreleaser | bash
