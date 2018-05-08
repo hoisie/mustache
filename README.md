@@ -5,12 +5,13 @@
 ## Why a Fork?
 
 I forked [hoisie/mustache](https://github.com/hoisie/mustache) because it does not appear to be maintained, and I wanted to add the following functionality:
+
 - Update the API to follow the idiomatic Go convention of returning errors (this is a breaking change)
 - Add option to treat missing variables as errors
 
 ## CLI Overview
 
-```
+```bash
 ➜  ~ go get github.com/cbroglie/mustache/...
 ➜  ~ mustache
 Usage:
@@ -40,9 +41,11 @@ For more information about mustache, check out the [mustache project page](http:
 Also check out some [example mustache files](http://github.com/defunkt/mustache/tree/master/examples/)
 
 ## Installation
+
 To install mustache.go, simply run `go get github.com/cbroglie/mustache`. To use it in a program, use `import "github.com/cbroglie/mustache"`
 
 ## Usage
+
 There are four main methods in this package:
 
 ```go
@@ -191,8 +194,8 @@ It'll be blank. You either have to use `&Person{"John", "Smith"}`, or call `Name
 
 ## Supported features
 
-* Variables
-* Comments
-* Change delimiter
-* Sections (boolean, enumerable, and inverted)
-* Partials
+- Variables
+- Comments
+- Change delimiter
+- Sections (boolean, enumerable, and inverted)
+- Partials
