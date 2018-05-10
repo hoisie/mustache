@@ -260,7 +260,7 @@ func TestMissing(t *testing.T) {
 		output, err := Render(test.tmpl, test.context)
 		if err == nil {
 			t.Errorf("%q expected missing variable error but got %q", test.tmpl, output)
-		} else if !strings.Contains(err.Error(), "Missing variable") {
+		} else if !strings.Contains(err.Error(), "missing variable") {
 			t.Errorf("%q expected missing variable error but got %q", test.tmpl, err.Error())
 		}
 	}
@@ -346,6 +346,88 @@ func TestMultiContext(t *testing.T) {
 	if output != "hello world" || output2 != "hello world" {
 		t.Errorf("TestMultiContext expected %q got %q", "hello world", output)
 		return
+	}
+}
+
+func TestLambda(t *testing.T) {
+	tmpl := `{{#lambda}}Hello {{name}}. {{#sub}}{{.}} {{/sub}}{{^negsub}}nothing{{/negsub}}{{/lambda}}`
+	data := map[string]interface{}{
+		"name": "world",
+		"sub":  []string{"subv1", "subv2"},
+		"lambda": func(text string, render RenderFunc) (string, error) {
+			res, err := render(text)
+			return res + "!", err
+		},
+	}
+
+	output, err := Render(tmpl, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expect := "Hello world. subv1 subv2 nothing!"
+	if output != expect {
+		t.Fatalf("TestLambda expected %q got %q", expect, output)
+	}
+}
+
+func TestLambdaStruct(t *testing.T) {
+	tmpl := `{{#Lambda}}Hello {{Name}}. {{#Sub}}{{.}} {{/Sub}}{{^Negsub}}nothing{{/Negsub}}{{/Lambda}}`
+	data := struct {
+		Name   string
+		Sub    []string
+		Lambda LambdaFunc
+	}{
+		Name: "world",
+		Sub:  []string{"subv1", "subv2"},
+		Lambda: func(text string, render RenderFunc) (string, error) {
+			res, err := render(text)
+			return res + "!", err
+		},
+	}
+
+	output, err := Render(tmpl, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expect := "Hello world. subv1 subv2 nothing!"
+	if output != expect {
+		t.Fatalf("TestLambdaStruct expected %q got %q", expect, output)
+	}
+}
+
+func TestLambdaError(t *testing.T) {
+	tmpl := `{{#lambda}}{{/lambda}}`
+	data := map[string]interface{}{
+		"lambda": func(text string, render RenderFunc) (string, error) {
+			return "", fmt.Errorf("test err")
+		},
+	}
+	_, err := Render(tmpl, data)
+	if err == nil {
+		t.Fatal("nil error")
+	}
+
+	expect := `lambda "lambda": test err`
+	if err.Error() != expect {
+		t.Fatalf("TestLambdaError expected %q got %q", expect, err.Error())
+	}
+}
+
+func TestLambdaWrongSignature(t *testing.T) {
+	tmpl := `{{#lambda}}{{/lambda}}`
+	data := map[string]interface{}{
+		"lambda": func(text string, render RenderFunc, _ string) (string, error) {
+			return render(text)
+		},
+	}
+	_, err := Render(tmpl, data)
+	if err == nil {
+		t.Fatal("nil error")
+	}
+
+	expect := `lambda "lambda" doesn't match required LambaFunc signature`
+	if err.Error() != expect {
+		t.Fatalf("TestLambdaWrongSignature expected %q got %q", expect, err.Error())
 	}
 }
 

@@ -20,8 +20,16 @@ var disabledTests = map[string]map[string]struct{}{
 		"Triple Mustache Null Interpolation": struct{}{},
 		"Ampersand Null Interpolation":       struct{}{},
 	},
-	"~lambdas.json":     {}, // not implemented
 	"~inheritance.json": {}, // not implemented
+	"~lambdas.json": {
+		"Interpolation":                        struct{}{},
+		"Interpolation - Expansion":            struct{}{},
+		"Interpolation - Alternate Delimiters": struct{}{},
+		"Interpolation - Multiple Calls":       struct{}{},
+		"Escaping":                             struct{}{},
+		"Section - Alternate Delimiters":       struct{}{},
+		"Inverted Section":                     struct{}{},
+	},
 }
 
 type specTest struct {
@@ -79,6 +87,12 @@ func runTest(t *testing.T, file string, test *specTest) {
 		}
 	}
 
+	// We can't generate lambda functions at runtime; instead we define them in
+	// code to match the spec tests and inject them here at runtime.
+	if file == "~lambdas.json" {
+		test.Data.(map[string]interface{})["lambda"] = lambdas[test.Name]
+	}
+
 	var out string
 	var err error
 	if len(test.Partials) > 0 {
@@ -96,4 +110,25 @@ func runTest(t *testing.T, file string, test *specTest) {
 	}
 
 	t.Logf("[%s %s]: Passed", file, test.Name)
+}
+
+// Define the lambda functions to match those in the spec tests. The javascript
+// implementations from the spec tests are included for reference.
+var lambdas = map[string]LambdaFunc{
+	"Section": func(text string, render RenderFunc) (string, error) {
+		// function(txt) { return (txt == "{{x}}" ? "yes" : "no") }
+		if text == "{{x}}" {
+			return "yes", nil
+		} else {
+			return "no", nil
+		}
+	},
+	"Section - Expansion": func(text string, render RenderFunc) (string, error) {
+		// function(txt) { return txt + "{{planet}}" + txt }
+		return render(text + "{{planet}}" + text)
+	},
+	"Section - Multiple Calls": func(text string, render RenderFunc) (string, error) {
+		// function(txt) { return "__" + txt + "__" }
+		return render("__" + text + "__")
+	},
 }
