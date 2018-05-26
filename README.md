@@ -47,7 +47,7 @@ Also check out some [example mustache files](http://github.com/defunkt/mustache/
 
 ## Installation
 
-To install mustache.go, simply run `go install github.com/cbroglie/mustache/...`. To use it in a program, use `import "github.com/cbroglie/mustache"`
+To install mustache.go, simply run `go get github.com/cbroglie/mustache/...`. To use it in a program, use `import "github.com/cbroglie/mustache"`
 
 ## Usage
 
