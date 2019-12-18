@@ -541,15 +541,13 @@ func isEmpty(v reflect.Value) bool {
 		return true
 	}
 	switch val := valueInd; val.Kind() {
-	case reflect.Bool:
-		return !val.Bool()
-	case reflect.Slice:
+	case reflect.Array, reflect.Slice:
 		return val.Len() == 0
 	case reflect.String:
 		return len(strings.TrimSpace(val.String())) == 0
+	default:
+		return valueInd.IsZero()
 	}
-
-	return false
 }
 
 func indirect(v reflect.Value) reflect.Value {

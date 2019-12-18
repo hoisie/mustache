@@ -125,9 +125,20 @@ var tests = []Test{
 	{`{{Name}}`, &User{"Mike", 1}, "Mike", nil},
 	{"{{#users}}\n{{Name}}\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\nMike\n", nil},
 	{"{{#users}}\r\n{{Name}}\r\n{{/users}}", map[string]interface{}{"users": makeVector(2)}, "Mike\r\nMike\r\n", nil},
-	{"{{#users}}Hi {{Name}}{{/users}}", map[string]interface{}{"users": ""}, "", nil},
-	{"{{#users}}Hi {{Name}}{{/users}}", map[string]interface{}{"users": []interface{}{}}, "", nil},
-	{"{{#users}}Hi {{Name}}{{/users}}", map[string]interface{}{"users": false}, "", nil},
+
+	//falsy: golang zero values
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": nil}, "", nil},
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": false}, "", nil},
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": 0}, "", nil},
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": 0.0}, "", nil},
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": ""}, "", nil},
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": Data{}}, "", nil},
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": []interface{}{}}, "", nil},
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": [0]interface{}{}}, "", nil},
+	//falsy: special cases we disagree with golang
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": "\t"}, "", nil},
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": []interface{}{0}}, "Hi 0", nil},
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": [1]interface{}{0}}, "Hi 0", nil},
 
 	//section does not exist
 	{`{{#has}}{{/has}}`, &User{"Mike", 1}, "", nil},
