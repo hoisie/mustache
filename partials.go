@@ -25,6 +25,7 @@ type FileProvider struct {
 	Extensions []string
 }
 
+// Get accepts the name of a partial and returns the parsed partial.
 func (fp *FileProvider) Get(name string) (string, error) {
 	var filename string
 
@@ -74,6 +75,7 @@ type StaticProvider struct {
 	Partials map[string]string
 }
 
+// Get accepts the name of a partial and returns the parsed partial.
 func (sp *StaticProvider) Get(name string) (string, error) {
 	if sp.Partials != nil {
 		if data, ok := sp.Partials[name]; ok {

@@ -1,5 +1,10 @@
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=1
+  - GOFLAGS=-mod=vendor
+  - GOPROXY=off
 builds:
-  - main: ./cmd/mustache/main.go
+  - main: ./cmd/mustache
     binary: mustache
     goos:
       - windows
