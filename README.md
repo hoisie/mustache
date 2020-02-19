@@ -7,12 +7,19 @@
 [![Downloads](https://img.shields.io/github/downloads/cbroglie/mustache/latest/total.svg)](https://github.com/cbroglie/mustache/releases)
 [![Latest release](https://img.shields.io/github/release/cbroglie/mustache.svg)](https://github.com/cbroglie/mustache/releases)
 
+
+<img src="./images/logo.jpeg" alt="logo" width="100"/>
+
+----
+
 ## Why a Fork?
 
 I forked [hoisie/mustache](https://github.com/hoisie/mustache) because it does not appear to be maintained, and I wanted to add the following functionality:
 
 - Update the API to follow the idiomatic Go convention of returning errors (this is a breaking change)
 - Add option to treat missing variables as errors
+
+----
 
 ## CLI Overview
 
@@ -31,6 +38,8 @@ Flags:
 ➜  ~
 ```
 
+----
+
 ## Package Overview
 
 This library is an implementation of the Mustache template language in Go.
@@ -39,15 +48,21 @@ This library is an implementation of the Mustache template language in Go.
 
 [mustache/spec](https://github.com/mustache/spec) contains the formal standard for Mustache, and it is included as a submodule (using v1.1.3) for testing compliance. All of the tests pass (big thanks to [kei10in](https://github.com/kei10in)), though the optional lambda support has not been implemented.
 
+----
+
 ## Documentation
 
 For more information about mustache, check out the [mustache project page](http://github.com/defunkt/mustache) or the [mustache manual](http://mustache.github.com/mustache.5.html).
 
 Also check out some [example mustache files](http://github.com/defunkt/mustache/tree/master/examples/)
 
+----
+
 ## Installation
 
 To install mustache.go, simply run `go get github.com/cbroglie/mustache/...`. To use it in a program, use `import "github.com/cbroglie/mustache"`
+
+----
 
 ## Usage
 
@@ -83,9 +98,13 @@ for i := 0; i < 10; i++ {
 
 For more example usage, please see `mustache_test.go`
 
+----
+
 ## Escaping
 
 mustache.go follows the official mustache HTML escaping rules. That is, if you enclose a variable with two curly brackets, `{{var}}`, the contents are HTML-escaped. For instance, strings like `5 > 2` are converted to `5 &gt; 2`. To use raw characters, use three curly brackets `{{{var}}}`.
+
+----
 
 ## Layouts
 
@@ -127,6 +146,8 @@ A call to `RenderFileInLayout("template.html.mustache", "layout.html.mustache", 
 </html>
 ```
 
+----
+
 ## Custom PartialProvider
 
 Mustache.go has been extended to support a user-defined repository for mustache partials, instead of the default of requiring file-based templates.
@@ -167,6 +188,8 @@ sp := StaticProvider(map[string]string{
 
 tmpl, err := ParseStringPartials("This partial is loaded from a map: {{>foo}}", sp)
 ```
+
+----
 
 ## A note about method receivers
 
