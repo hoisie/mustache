@@ -602,7 +602,9 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
 	for _, ctx := range contexts {
 		chain2[0] = ctx
 		for _, elem := range section.elems {
-			renderElement(elem, chain2, buf)
+			if err := renderElement(elem, chain2, buf); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
