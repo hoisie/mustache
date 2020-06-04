@@ -32,9 +32,13 @@ Usage:
 Examples:
   $ mustache data.yml template.mustache
   $ cat data.yml | mustache template.mustache
+  $ mustache --layout wrapper.mustache data template.mustache
+  $ mustache --overide over.yml data.yml template.mustache
 
 Flags:
   -h, --help   help for mustache
+  --layout     a file to use as the layout template
+  --override   a data.yml file whose definitions supercede data.yml
 ➜  ~
 ```
 
