@@ -12,9 +12,11 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use: "mustache [data] template",
+	Use: "mustache [--layout template] [data] template",
 	Example: `  $ mustache data.yml template.mustache
-  $ cat data.yml | mustache template.mustache`,
+  $ cat data.yml | mustache template.mustache
+  $ mustache --layout wrapper.mustache data template.mustache
+  $ mustache --overide over.yml data.yml template.mustache`,
 	Args: cobra.RangeArgs(0, 2),
 	Run: func(cmd *cobra.Command, args []string) {
 		err := run(cmd, args)
@@ -24,8 +26,12 @@ var rootCmd = &cobra.Command{
 		}
 	},
 }
+var layoutFile string
+var overrideFile string
 
 func main() {
+	rootCmd.Flags().StringVar(&layoutFile, "layout", "", "location of layout file")
+	rootCmd.Flags().StringVar(&overrideFile, "override", "", "location of data.yml override yml")
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -55,11 +61,25 @@ func run(cmd *cobra.Command, args []string) error {
 		templatePath = args[1]
 	}
 
-	output, err := mustache.RenderFile(templatePath, data)
+	if overrideFile != "" {
+		override, err := parseDataFromFile(overrideFile)
+		if err != nil {
+			return err
+		}
+		for k, v := range override.(map[interface{}]interface{}) {
+			data.(map[interface{}]interface{})[k] = v
+		}
+	}
+	var output string
+	var err error
+	if layoutFile != "" {
+		output, err = mustache.RenderFileInLayout(templatePath, layoutFile, data)
+	} else {
+		output, err = mustache.RenderFile(templatePath, data)
+	}
 	if err != nil {
 		return err
 	}
-
 	fmt.Print(output)
 	return nil
 }
