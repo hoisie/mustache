@@ -16,7 +16,7 @@ var rootCmd = &cobra.Command{
 	Example: `  $ mustache data.yml template.mustache
   $ cat data.yml | mustache template.mustache
   $ mustache --layout wrapper.mustache data template.mustache
-  $ mustache --overide over.yml data.yml template.mustache`,
+  $ mustache --override over.yml data.yml template.mustache`,
 	Args: cobra.RangeArgs(0, 2),
 	Run: func(cmd *cobra.Command, args []string) {
 		err := run(cmd, args)
