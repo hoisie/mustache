@@ -19,13 +19,15 @@ fmt:
 	go fmt ./...
 
 .PHONY: lint
-lint: bin/golint
-	go list ./... | xargs -L1 ./bin/golint -set_exit_status
+lint: bin/golangci-lint
+	./bin/golangci-lint run ./...
 
-bin/golint: $(shell find . -type f -name '*.go')
-	@mkdir -p $(dir $@)
-	go build -o $@ ./vendor/golang.org/x/lint/golint
+SOURCES     := $(shell find . -name '*.go')
+BUILD_FLAGS ?= -v
+LDFLAGS     ?= -w -s
 
-bin/%: $(shell find . -type f -name '*.go')
-	@mkdir -p $(dir $@)
-	go build -o $@ ./cmd/$(@F)
+bin/golangci-lint: $(SOURCES)
+	go build -o bin/golangci-lint ./vendor/github.com/golangci/golangci-lint/cmd/golangci-lint
+
+bin/%: $(SOURCES)
+	CGO_ENABLED=0 go build -o $@ $(BUILD_FLAGS) -ldflags "$(LDFLAGS)" ./cmd/$(@F)

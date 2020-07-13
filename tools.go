@@ -3,5 +3,5 @@
 package tools
 
 import (
-	_ "golang.org/x/lint/golint"
+	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 )
