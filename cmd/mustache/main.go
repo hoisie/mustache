@@ -39,8 +39,7 @@ func main() {
 
 func run(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
-		cmd.Usage()
-		return nil
+		return cmd.Usage()
 	}
 
 	var data interface{}

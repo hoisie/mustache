@@ -239,7 +239,7 @@ func TestMissing(t *testing.T) {
 		output, err := Render(test.tmpl, test.context)
 		if err == nil {
 			t.Errorf("%q expected missing variable error but got %q", test.tmpl, output)
-		} else if strings.Index(err.Error(), "Missing variable") == -1 {
+		} else if !strings.Contains(err.Error(), "Missing variable") {
 			t.Errorf("%q expected missing variable error but got %q", test.tmpl, err.Error())
 		}
 	}
