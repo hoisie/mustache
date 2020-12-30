@@ -2,7 +2,6 @@ package mustache
 
 import (
     "bytes"
-    "errors"
     "fmt"
     "html/template"
     "io"
@@ -115,7 +114,7 @@ func (tmpl *Template) parsePartial(name string) (*Template, error) {
         }
     }
     if filename == "" {
-        return nil, errors.New(fmt.Sprintf("Could not find partial %q", name))
+        return nil, fmt.Errorf("Could not find partial %q", name)
     }
 
     partial, err := ParseFile(filename)
@@ -557,43 +556,43 @@ func ParseFile(filename string) (*Template, error) {
     return &tmpl, nil
 }
 
-func Render(data string, context ...interface{}) string {
+func Render(data string, context ...interface{}) (string, error) {
     tmpl, err := ParseString(data)
     if err != nil {
-        return err.Error()
+        return "", err
     }
-    return tmpl.Render(context...)
+    return tmpl.Render(context...), nil
 }
 
-func RenderInLayout(data string, layoutData string, context ...interface{}) string {
+func RenderInLayout(data string, layoutData string, context ...interface{}) (string, error) {
     layoutTmpl, err := ParseString(layoutData)
     if err != nil {
-        return err.Error()
+        return "", err
     }
     tmpl, err := ParseString(data)
     if err != nil {
-        return err.Error()
+        return "", err
     }
-    return tmpl.RenderInLayout(layoutTmpl, context...)
+    return tmpl.RenderInLayout(layoutTmpl, context...), nil
 }
 
-func RenderFile(filename string, context ...interface{}) string {
+func RenderFile(filename string, context ...interface{}) (string, error) {
     tmpl, err := ParseFile(filename)
     if err != nil {
-        return err.Error()
+        return "", err
     }
-    return tmpl.Render(context...)
+    return tmpl.Render(context...), nil
 }
 
-func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) string {
+func RenderFileInLayout(filename string, layoutFile string, context ...interface{}) (string, error) {
     layoutTmpl, err := ParseFile(layoutFile)
     if err != nil {
-        return err.Error()
+        return "", err
     }
 
     tmpl, err := ParseFile(filename)
     if err != nil {
-        return err.Error()
+        return "", err
     }
-    return tmpl.RenderInLayout(layoutTmpl, context...)
+    return tmpl.RenderInLayout(layoutTmpl, context...), nil
 }
