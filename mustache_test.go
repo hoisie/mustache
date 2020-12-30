@@ -162,9 +162,6 @@ var tests = []Test{
         "categories": {&Category{"a", "b"}},
     }, "a - b"},
 
-    //invalid syntax - https://github.com/hoisie/mustache/issues/10
-    {`{{#a}}{{#b}}{{/a}}{{/b}}}`, map[string]interface{}{}, "line 1: interleaved closing tag: a"},
-
     //dotted names(dot notation)
     {`"{{person.name}}" == "{{#person}}{{name}}{{/person}}"`, map[string]interface{}{"person": map[string]string{"name": "Joe"}}, `"Joe" == "Joe"`},
     {`"{{{person.name}}}" == "{{#person}}{{{name}}}{{/person}}"`, map[string]interface{}{"person": map[string]string{"name": "Joe"}}, `"Joe" == "Joe"`},
@@ -177,7 +174,10 @@ var tests = []Test{
 
 func TestBasic(t *testing.T) {
     for _, test := range tests {
-        output := Render(test.tmpl, test.context)
+        output, err := Render(test.tmpl, test.context)
+        if err != nil {
+            t.Fatalf("%q expected %q got error %q", test.tmpl, test.expected, err.Error())
+        }
         if output != test.expected {
             t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
         }
@@ -187,7 +187,10 @@ func TestBasic(t *testing.T) {
 func TestFile(t *testing.T) {
     filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test1.mustache")
     expected := "hello world"
-    output := RenderFile(filename, map[string]string{"name": "world"})
+    output, err := RenderFile(filename, map[string]string{"name": "world"})
+    if err != nil {
+        t.Fatalf("testfile expected %q got error %q", expected, err.Error())
+    }
     if output != expected {
         t.Fatalf("testfile expected %q got %q", expected, output)
     }
@@ -197,7 +200,10 @@ func TestPartial(t *testing.T) {
     filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test2.mustache")
     println(filename)
     expected := "hello world"
-    output := RenderFile(filename, map[string]string{"Name": "world"})
+    output, err := RenderFile(filename, map[string]string{"Name": "world"})
+    if err != nil {
+        t.Fatalf("testpartial expected %q got error %q", expected, err.Error())
+    }
     if output != expected {
         t.Fatalf("testpartial expected %q got %q", expected, output)
     }
@@ -215,8 +221,8 @@ func TestSectionPartial(t *testing.T) {
 }
 */
 func TestMultiContext(t *testing.T) {
-    output := Render(`{{hello}} {{World}}`, map[string]string{"hello": "hello"}, struct{ World string }{"world"})
-    output2 := Render(`{{hello}} {{World}}`, struct{ World string }{"world"}, map[string]string{"hello": "hello"})
+    output, _ := Render(`{{hello}} {{World}}`, map[string]string{"hello": "hello"}, struct{ World string }{"world"})
+    output2, _ := Render(`{{hello}} {{World}}`, struct{ World string }{"world"}, map[string]string{"hello": "hello"})
     if output != "hello world" || output2 != "hello world" {
         t.Fatalf("TestMultiContext expected %q got %q", "hello world", output)
     }
@@ -227,13 +233,16 @@ var malformed = []Test{
     {`{{}}`, nil, "empty tag"},
     {`{{}`, nil, "unmatched open tag"},
     {`{{`, nil, "unmatched open tag"},
+
+    //invalid syntax - https://github.com/hoisie/mustache/issues/10
+    {`{{#a}}{{#b}}{{/a}}{{/b}}}`, map[string]interface{}{}, "line 1: interleaved closing tag: a"},
 }
 
 func TestMalformed(t *testing.T) {
     for _, test := range malformed {
-        output := Render(test.tmpl, test.context)
-        if strings.Index(output, test.expected) == -1 {
-            t.Fatalf("%q expected %q in error %q", test.tmpl, test.expected, output)
+        _, err := Render(test.tmpl, test.context)
+        if strings.Index(err.Error(), test.expected) == -1 {
+            t.Fatalf("%q expected %q in error %q", test.tmpl, test.expected, err.Error())
         }
     }
 }
@@ -255,7 +264,10 @@ var layoutTests = []LayoutTest{
 
 func TestLayout(t *testing.T) {
     for _, test := range layoutTests {
-        output := RenderInLayout(test.tmpl, test.layout, test.context)
+        output, err := RenderInLayout(test.tmpl, test.layout, test.context)
+        if err != nil {
+            t.Fatalf("%q expected %q got error %q", test.tmpl, test.expected, err.Error())
+        }
         if output != test.expected {
             t.Fatalf("%q expected %q got %q", test.tmpl, test.expected, output)
         }
