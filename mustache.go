@@ -570,7 +570,7 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
 	if err != nil {
 		return err
 	}
-	var context = contextChain[len(contextChain)-1].(reflect.Value)
+	var context = contextChain[0].(reflect.Value)
 	var contexts = []interface{}{}
 	// if the value is nil, check if it's an inverted section
 	isEmpty := isEmpty(value)
