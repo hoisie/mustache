@@ -140,6 +140,9 @@ var tests = []Test{
 	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": []interface{}{0}}, "Hi 0", nil},
 	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": [1]interface{}{0}}, "Hi 0", nil},
 
+	// non-false section have their value at the top of the context
+	{"{{#a}}Hi {{.}}{{/a}}", map[string]interface{}{"a": "Rob"}, "Hi Rob", nil},
+
 	//section does not exist
 	{`{{#has}}{{/has}}`, &User{"Mike", 1}, "", nil},
 

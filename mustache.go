@@ -590,7 +590,10 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
 		case reflect.Map, reflect.Struct:
 			contexts = append(contexts, value)
 		default:
-			contexts = append(contexts, context)
+			// Spec: Non-false sections have their value at the top of context,
+			// accessible as {{.}} or through the parent context. This gives
+			// a simple way to display content conditionally if a variable exists.
+			contexts = append(contexts, value)
 		}
 	} else if section.inverted {
 		contexts = append(contexts, context)
