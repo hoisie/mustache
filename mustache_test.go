@@ -179,6 +179,24 @@ var tests = []Test{
 		"categories": {&Category{"a", "b"}},
 	}, "a - b", nil},
 
+	{`{{#section}}{{#bool}}{{x}}{{/bool}}{{/section}}`,
+		map[string]interface{}{
+			"x": "broken",
+			"section": []map[string]interface{}{
+				{"x": "working", "bool": true},
+				{"x": "nope", "bool": false},
+			},
+		}, "working", nil},
+
+	{`{{#section}}{{^bool}}{{x}}{{/bool}}{{/section}}`,
+		map[string]interface{}{
+			"x": "broken",
+			"section": []map[string]interface{}{
+				{"x": "working", "bool": false},
+				{"x": "nope", "bool": true},
+			},
+		}, "working", nil},
+
 	//dotted names(dot notation)
 	{`"{{person.name}}" == "{{#person}}{{name}}{{/person}}"`, map[string]interface{}{"person": map[string]string{"name": "Joe"}}, `"Joe" == "Joe"`, nil},
 	{`"{{{person.name}}}" == "{{#person}}{{{name}}}{{/person}}"`, map[string]interface{}{"person": map[string]string{"name": "Joe"}}, `"Joe" == "Joe"`, nil},
