@@ -20,11 +20,6 @@ var disabledTests = map[string]map[string]struct{}{
 		"Ampersand Null Interpolation":       struct{}{},
 		"Implicit Iterators - HTML Escaping": struct{}{},
 	},
-	// To be fixed by https://github.com/cbroglie/mustache/pull/55
-	"sections.json": {
-		"Variable test":          struct{}{},
-		"Deeply Nested Contexts": struct{}{},
-	},
 	"~lambdas.json":     {}, // not implemented
 	"~inheritance.json": {}, // not implemented
 }
