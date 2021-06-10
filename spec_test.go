@@ -13,12 +13,12 @@ var disabledTests = map[string]map[string]struct{}{
 	"interpolation.json": {
 		// disabled b/c Go uses "&#34;" in place of "&quot;"
 		// both are valid escapings, and we validate the behavior in mustache_test.go
-		"HTML Escaping": struct{}{},
-		// Newly added spec tests which aren't currently passing:
+		"HTML Escaping":                      struct{}{},
+		"Implicit Iterators - HTML Escaping": struct{}{},
+		// Not currently compliant with null interpolation tests added in v1.2.1
 		"Basic Null Interpolation":           struct{}{},
 		"Triple Mustache Null Interpolation": struct{}{},
 		"Ampersand Null Interpolation":       struct{}{},
-		"Implicit Iterators - HTML Escaping": struct{}{},
 	},
 	"~lambdas.json":     {}, // not implemented
 	"~inheritance.json": {}, // not implemented
