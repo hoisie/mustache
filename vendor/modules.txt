@@ -1,17 +1,12 @@
 # github.com/inconshreveable/mousetrap v1.0.0
+## explicit
 github.com/inconshreveable/mousetrap
-# github.com/kr/text v0.2.0
-## explicit
-# github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
-## explicit
-# github.com/spf13/cobra v1.0.0
-## explicit
+# github.com/spf13/cobra v1.2.1
+## explicit; go 1.14
 github.com/spf13/cobra
 # github.com/spf13/pflag v1.0.5
-## explicit
+## explicit; go 1.12
 github.com/spf13/pflag
-# gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
-## explicit
-# gopkg.in/yaml.v2 v2.3.0
-## explicit
+# gopkg.in/yaml.v2 v2.4.0
+## explicit; go 1.15
 gopkg.in/yaml.v2
