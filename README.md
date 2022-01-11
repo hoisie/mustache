@@ -58,13 +58,13 @@ This library is an implementation of the Mustache template language in Go.
 
 For more information about mustache, check out the [mustache project page](https://github.com/mustache/mustache) or the [mustache manual](https://mustache.github.io/mustache.5.html).
 
-Also check out some [example mustache files](http://github.com/mustache/mustache/tree/master/examples/)
+Also check out some [example mustache files](http://github.com/mustache/mustache/tree/master/examples/).
 
 ----
 
 ## Installation
 
-To install mustache.go, simply run `go get github.com/cbroglie/mustache/...`. To use it in a program, use `import "github.com/cbroglie/mustache"`
+To install the CLI, run `go install github.com/cbroglie/mustache/cmd/mustache@latest`. To use it in a program, run `go get github.com/cbroglie/mustache` and use `import "github.com/cbroglie/mustache"`.
 
 ----
 
