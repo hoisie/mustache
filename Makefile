@@ -1,5 +1,3 @@
-export GOFLAGS := -mod=vendor
-
 .PHONY: all
 all: bin/mustache
 

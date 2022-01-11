@@ -13,3 +13,4 @@ _testmain.go
 coverage.txt
 /bin
 /dist
+/vendor

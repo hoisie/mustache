@@ -3,7 +3,7 @@ module github.com/cbroglie/mustache
 go 1.17
 
 require (
-	github.com/spf13/cobra v1.2.1
+	github.com/spf13/cobra v1.3.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
