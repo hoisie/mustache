@@ -648,7 +648,11 @@ func getElementText(element interface{}, buf io.Writer) error {
 	case *textElement:
 		fmt.Fprintf(buf, "%s", elem.text)
 	case *varElement:
-		fmt.Fprintf(buf, "{{%s}}", elem.name)
+		if elem.raw {
+			fmt.Fprintf(buf, "{{{%s}}}", elem.name)
+		} else {
+			fmt.Fprintf(buf, "{{%s}}", elem.name)
+		}
 	case *sectionElement:
 		if elem.inverted {
 			fmt.Fprintf(buf, "{{^%s}}", elem.name)

@@ -396,6 +396,28 @@ func TestLambdaStruct(t *testing.T) {
 	}
 }
 
+func TestLambdaRawTag(t *testing.T) {
+	tmpl := `{{#Lambda}}Hello {{{Name}}}.{{/Lambda}}`
+	data := struct {
+		Name   string
+		Lambda LambdaFunc
+	}{
+		Name: "<br>",
+		Lambda: func(text string, render RenderFunc) (string, error) {
+			return render(text)
+		},
+	}
+
+	output, err := Render(tmpl, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expect := "Hello <br>."
+	if output != expect {
+		t.Fatalf("TestLambdaStruct expected %q got %q", expect, output)
+	}
+}
+
 func TestLambdaError(t *testing.T) {
 	tmpl := `{{#lambda}}{{/lambda}}`
 	data := map[string]interface{}{
