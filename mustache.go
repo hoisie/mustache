@@ -110,11 +110,6 @@ type Template struct {
 	partial  PartialProvider
 }
 
-type parseError struct {
-	line    int
-	message string
-}
-
 // Tags returns the mustache tags for the given template
 func (tmpl *Template) Tags() []Tag {
 	return extractTags(tmpl.elems)
@@ -172,10 +167,6 @@ func (e *partialElement) Name() string {
 
 func (e *partialElement) Tags() []Tag {
 	return nil
-}
-
-func (p parseError) Error() string {
-	return fmt.Sprintf("line %d: %s", p.line, p.message)
 }
 
 func (tmpl *Template) readString(s string) (string, error) {
@@ -270,7 +261,7 @@ func (tmpl *Template) readTag(mayStandalone bool) (*tagReadingResult, error) {
 
 	if err == io.EOF {
 		//put the remaining text in a block
-		return nil, parseError{tmpl.curline, "unmatched open tag"}
+		return nil, newError(tmpl.curline, ErrUnmatchedOpenTag)
 	}
 
 	text = text[:len(text)-len(tmpl.ctag)]
@@ -278,7 +269,7 @@ func (tmpl *Template) readTag(mayStandalone bool) (*tagReadingResult, error) {
 	//trim the close tag off the text
 	tag := strings.TrimSpace(text)
 	if len(tag) == 0 {
-		return nil, parseError{tmpl.curline, "empty tag"}
+		return nil, newError(tmpl.curline, ErrEmptyTag)
 	}
 
 	eow := tmpl.p
@@ -334,7 +325,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 
 		if err == io.EOF {
 			//put the remaining text in a block
-			return parseError{section.startline, "Section " + section.name + " has no closing tag"}
+			return newErrorWithReason(section.startline, ErrSectionNoClosingTag, section.name)
 		}
 
 		// put text into an item
@@ -364,7 +355,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 		case '/':
 			name := strings.TrimSpace(tag[1:])
 			if name != section.name {
-				return parseError{tmpl.curline, "interleaved closing tag: " + name}
+				return newErrorWithReason(tmpl.curline, ErrInterleavedClosingTag, name)
 			}
 			return nil
 		case '>':
@@ -376,7 +367,7 @@ func (tmpl *Template) parseSection(section *sectionElement) error {
 			section.elems = append(section.elems, partial)
 		case '=':
 			if tag[len(tag)-1] != '=' {
-				return parseError{tmpl.curline, "Invalid meta tag"}
+				return newError(tmpl.curline, ErrInvalidMetaTag)
 			}
 			tag = strings.TrimSpace(tag[1 : len(tag)-1])
 			newtags := strings.SplitN(tag, " ", 2)
@@ -437,7 +428,7 @@ func (tmpl *Template) parse() error {
 			}
 			tmpl.elems = append(tmpl.elems, &se)
 		case '/':
-			return parseError{tmpl.curline, "unmatched close tag"}
+			return newError(tmpl.curline, ErrUnmatchedCloseTag)
 		case '>':
 			name := strings.TrimSpace(tag[1:])
 			partial, err := tmpl.parsePartial(name, textResult.padding)
@@ -447,7 +438,7 @@ func (tmpl *Template) parse() error {
 			tmpl.elems = append(tmpl.elems, partial)
 		case '=':
 			if tag[len(tag)-1] != '=' {
-				return parseError{tmpl.curline, "Invalid meta tag"}
+				return newError(tmpl.curline, ErrInvalidMetaTag)
 			}
 			tag = strings.TrimSpace(tag[1 : len(tag)-1])
 			newtags := strings.SplitN(tag, " ", 2)

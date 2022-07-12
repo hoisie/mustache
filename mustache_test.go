@@ -2,6 +2,7 @@ package mustache
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -455,6 +456,40 @@ func TestMalformed(t *testing.T) {
 			} else {
 				t.Errorf("%q expected error %q but got %q", test.tmpl, test.err.Error(), output)
 			}
+		}
+	}
+}
+
+type TestWithParseError struct {
+	*Test
+	errLine   int
+	errCode   ErrorCode
+	errReason string
+}
+
+var malformedWithParseError = []TestWithParseError{
+	{Test: &Test{`{{#a}}{{}}{{/a}}`, Data{true, "hello"}, "", fmt.Errorf("line 1: empty tag")}, errLine: 1, errCode: ErrEmptyTag, errReason: ""},
+	{Test: &Test{`{{}}`, nil, "", fmt.Errorf("line 1: empty tag")}, errLine: 1, errCode: ErrEmptyTag, errReason: ""},
+	{Test: &Test{`{{}`, nil, "", fmt.Errorf("line 1: unmatched open tag")}, errLine: 1, errCode: ErrUnmatchedOpenTag, errReason: ""},
+	{Test: &Test{`{{`, nil, "", fmt.Errorf("line 1: unmatched open tag")}, errLine: 1, errCode: ErrUnmatchedOpenTag, errReason: ""},
+	// invalid syntax - https://github.com/hoisie/mustache/issues/10
+	{Test: &Test{`{{#a}}{{#b}}{{/a}}{{/b}}}`, map[string]interface{}{}, "", fmt.Errorf("line 1: interleaved closing tag: a")}, errLine: 1, errCode: ErrInterleavedClosingTag, errReason: "a"},
+}
+
+func TestParseError(t *testing.T) {
+	for _, test := range malformedWithParseError {
+		output, err := Render(test.tmpl, test.context)
+		if err != nil {
+			var parseError ParseError
+			if errors.As(err, &parseError) {
+				if parseError.Line != test.errLine || parseError.Code != test.errCode || parseError.Reason != test.errReason {
+					t.Errorf("%q expected ParseError (line %q code %q reason %q) but got (line %q code %q reason %q)", test.tmpl, test.errLine, test.errCode, test.errReason, parseError.Line, parseError.Code, parseError.Reason)
+				}
+			} else {
+				t.Errorf("%q expected ParseError (line %q code %q reason %q) but got %q", test.tmpl, test.errLine, test.errCode, test.errReason, test.err.Error())
+			}
+		} else {
+			t.Errorf("%q expected error %q but got %q", test.tmpl, test.err.Error(), output)
 		}
 	}
 }
