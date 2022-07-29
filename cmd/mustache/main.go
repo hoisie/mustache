@@ -21,7 +21,7 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		err := run(cmd, args)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 			os.Exit(1)
 		}
 	},
