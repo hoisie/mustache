@@ -24,7 +24,7 @@ I forked [hoisie/mustache](https://github.com/hoisie/mustache) because it does n
 ## CLI Overview
 
 ```bash
-➜  ~ go get github.com/cbroglie/mustache/...
+➜  ~ go install github.com/cbroglie/mustache/cmd/mustache@latest
 ➜  ~ mustache
 Usage:
   mustache [data] template [flags]
