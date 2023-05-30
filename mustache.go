@@ -26,6 +26,9 @@ type RenderFunc func(text string) (string, error)
 // LambdaFunc is the signature for lambda functions.
 type LambdaFunc func(text string, render RenderFunc) (string, error)
 
+// EscapeFunc is used for escaping non-raw values in templates.
+type EscapeFunc func(text string) string
+
 // A TagType represents the specific type of mustache tag that a Tag
 // represents. The zero TagType is not a valid type.
 type TagType uint
@@ -108,11 +111,17 @@ type Template struct {
 	elems    []interface{}
 	forceRaw bool
 	partial  PartialProvider
+	escape   EscapeFunc
 }
 
 // Tags returns the mustache tags for the given template
 func (tmpl *Template) Tags() []Tag {
 	return extractTags(tmpl.elems)
+}
+
+// Escape sets custom escape function. By-default it is HTMLEscape.
+func (tmpl *Template) Escape(fn EscapeFunc) {
+	tmpl.escape = fn
 }
 
 func extractTags(elems []interface{}) []Tag {
@@ -560,7 +569,7 @@ loop:
 	return v
 }
 
-func renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer) error {
+func (tmpl *Template) renderSection(section *sectionElement, contextChain []interface{}, buf io.Writer) error {
 	value, err := lookup(contextChain, section.name, true)
 	if err != nil {
 		return err
@@ -626,7 +635,7 @@ func renderSection(section *sectionElement, contextChain []interface{}, buf io.W
 	for _, ctx := range contexts {
 		chain2[0] = ctx
 		for _, elem := range section.elems {
-			if err := renderElement(elem, chain2, buf); err != nil {
+			if err := tmpl.renderElement(elem, chain2, buf); err != nil {
 				return err
 			}
 		}
@@ -671,7 +680,7 @@ func getElementText(element interface{}, buf io.Writer) error {
 	return nil
 }
 
-func renderElement(element interface{}, contextChain []interface{}, buf io.Writer) error {
+func (tmpl *Template) renderElement(element interface{}, contextChain []interface{}, buf io.Writer) error {
 	switch elem := element.(type) {
 	case *textElement:
 		_, err := buf.Write(elem.text)
@@ -692,11 +701,11 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 				fmt.Fprint(buf, val.Interface())
 			} else {
 				s := fmt.Sprint(val.Interface())
-				template.HTMLEscape(buf, []byte(s))
+				_, _ = buf.Write([]byte(tmpl.escape(s)))
 			}
 		}
 	case *sectionElement:
-		if err := renderSection(elem, contextChain, buf); err != nil {
+		if err := tmpl.renderSection(elem, contextChain, buf); err != nil {
 			return err
 		}
 	case *partialElement:
@@ -713,7 +722,7 @@ func renderElement(element interface{}, contextChain []interface{}, buf io.Write
 
 func (tmpl *Template) renderTemplate(contextChain []interface{}, buf io.Writer) error {
 	for _, elem := range tmpl.elems {
-		if err := renderElement(elem, contextChain, buf); err != nil {
+		if err := tmpl.renderElement(elem, contextChain, buf); err != nil {
 			return err
 		}
 	}
@@ -797,7 +806,7 @@ func ParseStringPartials(data string, partials PartialProvider) (*Template, erro
 // to efficiently render the template multiple times with different data
 // sources.
 func ParseStringPartialsRaw(data string, partials PartialProvider, forceRaw bool) (*Template, error) {
-	tmpl := Template{data, "{{", "}}", 0, 1, []interface{}{}, forceRaw, partials}
+	tmpl := Template{data, "{{", "}}", 0, 1, []interface{}{}, forceRaw, partials, template.HTMLEscapeString}
 	err := tmpl.parse()
 
 	if err != nil {
@@ -837,7 +846,7 @@ func ParseFilePartialsRaw(filename string, forceRaw bool, partials PartialProvid
 		return nil, err
 	}
 
-	tmpl := Template{string(data), "{{", "}}", 0, 1, []interface{}{}, forceRaw, partials}
+	tmpl := Template{string(data), "{{", "}}", 0, 1, []interface{}{}, forceRaw, partials, template.HTMLEscapeString}
 	err = tmpl.parse()
 
 	if err != nil {

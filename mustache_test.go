@@ -323,15 +323,15 @@ func TestPartial(t *testing.T) {
 }
 
 /*
-func TestSectionPartial(t *testing.T) {
-    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test3.mustache")
-    expected := "Mike\nJoe\n"
-    context := map[string]interface{}{"users": []User{{"Mike", 1}, {"Joe", 2}}}
-    output := RenderFile(filename, context)
-    if output != expected {
-        t.Fatalf("testSectionPartial expected %q got %q", expected, output)
-    }
-}
+	func TestSectionPartial(t *testing.T) {
+	    filename := path.Join(path.Join(os.Getenv("PWD"), "tests"), "test3.mustache")
+	    expected := "Mike\nJoe\n"
+	    context := map[string]interface{}{"users": []User{{"Mike", 1}, {"Joe", 2}}}
+	    output := RenderFile(filename, context)
+	    if output != expected {
+	        t.Fatalf("testSectionPartial expected %q got %q", expected, output)
+	    }
+	}
 */
 func TestMultiContext(t *testing.T) {
 	output, err := Render(`{{hello}} {{World}}`, map[string]string{"hello": "hello"}, struct{ World string }{"world"})
@@ -714,5 +714,25 @@ func compareTags(t *testing.T, actual []Tag, expected []tag) {
 			t.Errorf("invalid tag type: %s", tag.Type())
 			return
 		}
+	}
+}
+
+func TestCustomEscape(t *testing.T) {
+	templ, err := ParseString("Hello {{value}}!")
+	if err != nil {
+		t.Fatalf("default template should be parsed")
+	}
+	templ.Escape(func(text string) string {
+		return "!" + text + "!"
+	})
+
+	value, err := templ.Render(map[string]string{"value": "world"})
+	if err != nil {
+		t.Errorf("expected to be rendered, got %v", err)
+	}
+	const expected = "Hello !world!!"
+
+	if value != expected {
+		t.Errorf("expected %s, got %v", expected, value)
 	}
 }
