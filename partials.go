@@ -1,7 +1,6 @@
 package mustache
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"regexp"
@@ -59,7 +58,7 @@ func (fp *FileProvider) Get(name string) (string, error) {
 		return "", nil
 	}
 
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return "", err
 	}

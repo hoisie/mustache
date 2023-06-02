@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -841,7 +840,7 @@ func ParseFilePartials(filename string, partials PartialProvider) (*Template, er
 // output can be used to efficiently render the template multiple times with
 // different data sources.
 func ParseFilePartialsRaw(filename string, forceRaw bool, partials PartialProvider) (*Template, error) {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
