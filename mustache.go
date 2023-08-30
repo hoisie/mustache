@@ -928,8 +928,8 @@ func RenderInLayoutPartials(data string, layoutData string, partials PartialProv
 }
 
 // RenderFile loads a mustache template string from a file and compiles it, and
-// then uses the the given data source - generally a map or struct - to render
-// the template and return the output.
+// then uses the given data source - generally a map or struct - to render the
+// template and return the output.
 func RenderFile(filename string, context ...interface{}) (string, error) {
 	tmpl, err := ParseFile(filename)
 	if err != nil {
